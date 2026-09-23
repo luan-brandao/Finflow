@@ -458,7 +458,6 @@ class UserControllerIntegrationTest {
 
         User user = new User();
 
-        user.setId(UUID.randomUUID());
         user.setName(name);
         user.setEmail(email);
         user.setPassword(
