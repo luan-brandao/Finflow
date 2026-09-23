@@ -1,0 +1,76 @@
+services:
+
+  postgres:
+    image: postgres:16
+    container_name: finflow-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: finflow_users
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d finflow_users"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+
+  eureka-server:
+    build:
+      context: ./eureka-server
+
+    container_name: finflow-eureka-server
+    restart: unless-stopped
+
+    ports:
+      - "8761:8761"
+
+
+  user-service:
+    build:
+      context: ./user-service
+
+    container_name: finflow-user-service
+    restart: unless-stopped
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+
+    ports:
+      - "8080:8080"
+
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/finflow_users
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      JWT_SECRET: SUCyqUK/gHFUSeNnni37KZHllM1w6+43ibwhqcXlloU=
+
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+
+    container_name: finflow-api-gateway
+    restart: unless-stopped
+
+    depends_on:
+      eureka-server:
+        condition: service_started
+
+    ports:
+      - "8081:8081"
+
+
+volumes:
+  postgres_data:
