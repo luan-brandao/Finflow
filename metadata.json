@@ -1,6 +1,0 @@
-{
-  "name": "Finflow User Service & Dashboard",
-  "description": "An interactive management dashboard and API playground for Finflow's microservices.",
-  "permissions": [],
-  "capabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}

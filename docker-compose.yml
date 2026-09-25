@@ -23,6 +23,29 @@ services:
       retries: 5
 
 
+  postgres-finance:
+    image: postgres:16
+    container_name: finflow-postgres-finance
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: finflow_finance
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+
+    ports:
+      - "5433:5432"
+
+    volumes:
+      - postgres_finance_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d finflow_finance"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+
   eureka-server:
     build:
       context: ./eureka-server
@@ -57,6 +80,29 @@ services:
       JWT_SECRET: SUCyqUK/gHFUSeNnni37KZHllM1w6+43ibwhqcXlloU=
 
 
+  finance-service:
+    build:
+      context: ./finance-service
+
+    container_name: finflow-finance-service
+    restart: unless-stopped
+
+    depends_on:
+      postgres-finance:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+
+    ports:
+      - "8082:8082"
+
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-finance:5432/finflow_finance
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      JWT_SECRET: SUCyqUK/gHFUSeNnni37KZHllM1w6+43ibwhqcXlloU=
+
+
   api-gateway:
     build:
       context: ./api-gateway
@@ -74,3 +120,4 @@ services:
 
 volumes:
   postgres_data:
+  postgres_finance_data:
