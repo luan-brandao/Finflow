@@ -12,12 +12,13 @@ import {
   TrendingUp,
   TrendingDown,
   Calendar,
-  Search
+  Search,
+  CreditCard
 } from 'lucide-react'
 import Layout from '../../components/Layout'
 import transactionService from '../../services/transactionService'
 import categoryService from '../../services/categoryService'
-import type { Transaction, Category, TransactionType } from '../../types'
+import type { Transaction, Category, TransactionType, Card } from '../../types'
 
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -25,6 +26,10 @@ export default function TransactionsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+
+  // Credit Cards integration states
+  const [localCards, setLocalCards] = useState<Card[]>([])
+  const [transactionCards, setTransactionCards] = useState<Record<string, string>>({}) // txId -> cardId
 
   // Search filter
   const [searchTerm, setSearchTerm] = useState('')
@@ -39,11 +44,13 @@ export default function TransactionsPage() {
   const [amount, setAmount] = useState('')
   const [type, setType] = useState<TransactionType>('EXPENSE')
   const [categoryId, setCategoryId] = useState('')
+  const [cardId, setCardId] = useState('') // card select
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
 
   // Filter state
   const [filterType, setFilterType] = useState<'ALL' | 'INCOME' | 'EXPENSE'>('ALL')
   const [filterCategory, setFilterCategory] = useState('ALL')
+  const [filterCard, setFilterCard] = useState('ALL') // card filter
 
   const fetchData = async () => {
     setLoading(true)
@@ -53,11 +60,48 @@ export default function TransactionsPage() {
         transactionService.findAll(),
         categoryService.findAll()
       ])
+      
       setTransactions(txs)
       setCategories(cats)
       if (cats.length > 0 && !categoryId) {
         setCategoryId(cats[0].id)
       }
+
+      // Load Local Credit Cards & Transaction card associations
+      const storedCards = localStorage.getItem('finflow_local_cards')
+      const storedAssociations = localStorage.getItem('finflow_transaction_cards')
+      
+      let parsedCards: Card[] = []
+      let parsedAssoc: Record<string, string> = {}
+
+      if (storedCards) {
+        parsedCards = JSON.parse(storedCards)
+      } else {
+        parsedCards = [
+          { id: 'nubank-seed', name: 'Nubank', limit: 3000, used: 350 },
+          { id: 'itau-seed', name: 'Itaú', limit: 5000, used: 1200 }
+        ]
+        localStorage.setItem('finflow_local_cards', JSON.stringify(parsedCards))
+      }
+
+      if (storedAssociations) {
+        parsedAssoc = JSON.parse(storedAssociations)
+      }
+      
+      setTransactionCards(parsedAssoc)
+
+      // Dynamic used limit calculation for cards:
+      // used limit = sum of all associated expense transactions
+      const updatedCards = parsedCards.map(card => {
+        const sum = txs
+          .filter(tx => tx.type === 'EXPENSE' && parsedAssoc[tx.id] === card.id)
+          .reduce((total, tx) => total + tx.amount, 0)
+        return { ...card, used: sum }
+      })
+
+      localStorage.setItem('finflow_local_cards', JSON.stringify(updatedCards))
+      setLocalCards(updatedCards)
+
     } catch (err: any) {
       console.error(err)
       setError('Erro ao carregar os lançamentos. Verifique se o backend está online.')
@@ -78,6 +122,7 @@ export default function TransactionsPage() {
     if (categories.length > 0) {
       setCategoryId(categories[0].id)
     }
+    setCardId('')
     setDate(new Date().toISOString().split('T')[0])
     setIsFormOpen(true)
     setError('')
@@ -90,6 +135,7 @@ export default function TransactionsPage() {
     setAmount(tx.amount.toString())
     setType(tx.type)
     setCategoryId(tx.categoryId)
+    setCardId(transactionCards[tx.id] || '')
     setDate(tx.date)
     setIsFormOpen(true)
     setError('')
@@ -127,13 +173,26 @@ export default function TransactionsPage() {
     }
 
     try {
+      let savedTx: Transaction
       if (editingId) {
-        await transactionService.update(editingId, payload)
+        savedTx = await transactionService.update(editingId, payload)
         setSuccess('Lançamento atualizado com sucesso!')
       } else {
-        await transactionService.create(payload)
+        savedTx = await transactionService.create(payload)
         setSuccess('Lançamento registrado com sucesso!')
       }
+
+      // Associate transaction with selected Credit Card locally
+      const updatedAssoc = { ...transactionCards }
+      if (type === 'EXPENSE' && cardId) {
+        updatedAssoc[savedTx.id] = cardId
+      } else {
+        delete updatedAssoc[savedTx.id]
+      }
+
+      localStorage.setItem('finflow_transaction_cards', JSON.stringify(updatedAssoc))
+      setTransactionCards(updatedAssoc)
+
       setIsFormOpen(false)
       fetchData()
     } catch (err: any) {
@@ -153,6 +212,13 @@ export default function TransactionsPage() {
     setLoading(true)
     try {
       await transactionService.delete(id)
+      
+      // Clean up association
+      const updatedAssoc = { ...transactionCards }
+      delete updatedAssoc[id]
+      localStorage.setItem('finflow_transaction_cards', JSON.stringify(updatedAssoc))
+      setTransactionCards(updatedAssoc)
+
       setSuccess('Lançamento removido com sucesso!')
       fetchData()
     } catch (err: any) {
@@ -173,12 +239,19 @@ export default function TransactionsPage() {
     return categories.find(c => c.id === catId)?.name || 'Sem Categoria'
   }
 
-  // Double Filter logic: Type + Category + Instant Description Search
+  const getCardName = (txId: string) => {
+    const cId = transactionCards[txId]
+    if (!cId) return null
+    return localCards.find(c => c.id === cId)?.name || null
+  }
+
+  // Triple Filter logic: Type + Category + Credit Card + Instant Description Search
   const filteredTransactions = transactions.filter(tx => {
     const matchesType = filterType === 'ALL' || tx.type === filterType
     const matchesCategory = filterCategory === 'ALL' || tx.categoryId === filterCategory
+    const matchesCard = filterCard === 'ALL' || transactionCards[tx.id] === filterCard
     const matchesSearch = tx.description.toLowerCase().includes(searchTerm.toLowerCase())
-    return matchesType && matchesCategory && matchesSearch
+    return matchesType && matchesCategory && matchesCard && matchesSearch
   })
 
   return (
@@ -229,27 +302,27 @@ export default function TransactionsPage() {
         {/* Filter Toolbar (Segmented Filters & Search) */}
         <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 flex flex-col lg:flex-row items-center justify-between gap-4 shadow-sm">
           
-          <div className="flex flex-col sm:flex-row items-center gap-4 w-full lg:w-auto">
+          <div className="flex flex-col sm:flex-row flex-wrap items-center gap-4 w-full lg:w-auto">
             
             {/* Search Bar */}
-            <div className="relative w-full sm:w-64">
+            <div className="relative w-full sm:w-48">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
-                placeholder="Pesquisar lançamento..."
+                placeholder="Pesquisar..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded-xl outline-none transition-all font-semibold text-slate-700"
               />
             </div>
 
-            {/* Segmented Filter Option for Types */}
+            {/* Filter by Type */}
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <Filter className="w-4 h-4 text-slate-400 shrink-0" />
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value as any)}
-                className="w-full sm:w-auto text-xs font-bold text-slate-500 bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded-xl px-3.5 py-2.5 outline-none transition-all cursor-pointer"
+                className="w-full sm:w-auto text-xs font-bold text-slate-500 bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded-xl px-3 py-2 outline-none transition-all cursor-pointer"
               >
                 <option value="ALL">Todos os Tipos</option>
                 <option value="INCOME">Apenas Receitas</option>
@@ -262,11 +335,25 @@ export default function TransactionsPage() {
               <select
                 value={filterCategory}
                 onChange={(e) => setFilterCategory(e.target.value)}
-                className="w-full sm:w-auto text-xs font-bold text-slate-500 bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded-xl px-3.5 py-2.5 outline-none transition-all cursor-pointer"
+                className="w-full sm:w-auto text-xs font-bold text-slate-500 bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded-xl px-3 py-2 outline-none transition-all cursor-pointer"
               >
                 <option value="ALL">Todas as Categorias</option>
                 {categories.map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Filter by Credit Card */}
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <select
+                value={filterCard}
+                onChange={(e) => setFilterCard(e.target.value)}
+                className="w-full sm:w-auto text-xs font-bold text-slate-500 bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded-xl px-3 py-2 outline-none transition-all cursor-pointer"
+              >
+                <option value="ALL">Todos os Cartões</option>
+                {localCards.map(card => (
+                  <option key={card.id} value={card.id}>{card.name}</option>
                 ))}
               </select>
             </div>
@@ -293,7 +380,7 @@ export default function TransactionsPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 items-end">
               
               {/* Type Switch Selector */}
               <div className="space-y-1.5">
@@ -301,14 +388,14 @@ export default function TransactionsPage() {
                 <div className="flex p-1.5 bg-slate-200/60 rounded-xl select-none">
                   <button
                     type="button"
-                    onClick={() => setType('EXPENSE')}
+                    onClick={() => { setType('EXPENSE'); setCardId(''); }}
                     className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${type === 'EXPENSE' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-500'}`}
                   >
                     Despesa
                   </button>
                   <button
                     type="button"
-                    onClick={() => setType('INCOME')}
+                    onClick={() => { setType('INCOME'); setCardId(''); }}
                     className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${type === 'INCOME' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500'}`}
                   >
                     Receita
@@ -360,9 +447,27 @@ export default function TransactionsPage() {
                 </select>
               </div>
 
+              {/* Credit Card Selection (only for EXPENSE and if any local cards exist) */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+                  Cartão {type === 'INCOME' && <span className="text-[9px] lowercase font-normal italic">(somente despesa)</span>}
+                </label>
+                <select
+                  disabled={type === 'INCOME' || localCards.length === 0}
+                  value={cardId}
+                  onChange={(e) => setCardId(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 hover:border-slate-300 focus:border-indigo-500 rounded-xl outline-none transition-all cursor-pointer font-semibold text-slate-600 disabled:opacity-50"
+                >
+                  <option value="">Nenhum Cartão</option>
+                  {localCards.map(card => (
+                    <option key={card.id} value={card.id}>{card.name}</option>
+                  ))}
+                </select>
+              </div>
+
               {/* Date Input */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Data do Lançamento</label>
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Data</label>
                 <input
                   type="date"
                   required
@@ -373,7 +478,7 @@ export default function TransactionsPage() {
               </div>
 
               {/* Submit Buttons footer */}
-              <div className="lg:col-span-5 flex justify-end gap-3 pt-3">
+              <div className="lg:col-span-6 flex justify-end gap-3 pt-3">
                 <button
                   type="button"
                   onClick={handleCloseForm}
@@ -405,7 +510,7 @@ export default function TransactionsPage() {
               <p className="text-sm font-semibold text-slate-500">Sincronizando extrato financeiro...</p>
             </div>
           ) : filteredTransactions.length === 0 ? (
-            <div className="py-24 text-center text-slate-400 flex flex-col items-center justify-center gap-3">
+            <div className="py-24 text-center text-slate-400 flex flex-col items-center justify-center gap-3 bg-white">
               <ArrowLeftRight className="w-12 h-10 text-slate-300" />
               <p className="text-sm font-bold">Nenhum lançamento localizado.</p>
               <p className="text-xs max-w-xs leading-relaxed text-slate-400 font-medium">Use o botão no topo para registrar receitas ou despesas e ter visibilidade do seu orçamento diário.</p>
@@ -414,6 +519,7 @@ export default function TransactionsPage() {
             <div className="divide-y divide-slate-100">
               {filteredTransactions.map((tx) => {
                 const isIncome = tx.type === 'INCOME'
+                const cardName = getCardName(tx.id)
                 return (
                   <div key={tx.id} className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/30 transition-colors">
                     
@@ -436,6 +542,15 @@ export default function TransactionsPage() {
                             <Calendar className="w-3.5 h-3.5" />
                             <span>{tx.date}</span>
                           </div>
+                          {cardName && (
+                            <>
+                              <span aria-hidden="true" className="text-slate-200">·</span>
+                              <div className="flex items-center gap-1 text-indigo-500 font-bold select-none">
+                                <CreditCard className="w-3.5 h-3.5 shrink-0 text-indigo-400" />
+                                <span>{cardName}</span>
+                              </div>
+                            </>
+                          )}
                         </div>
                       </div>
 

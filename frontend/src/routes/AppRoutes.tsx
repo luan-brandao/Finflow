@@ -5,6 +5,7 @@ import RegisterPage from '../pages/auth/RegisterPage'
 import DashboardPage from '../pages/dashboard/DashboardPage'
 import TransactionsPage from '../pages/transactions/TransactionsPage'
 import CategoriesPage from '../pages/categories/CategoriesPage'
+import CardsPage from '../pages/cards/CardsPage'
 import ProfilePage from '../pages/profile/ProfilePage'
 
 function AppRoutes() {
@@ -16,6 +17,7 @@ function AppRoutes() {
       <Route path="/dashboard" element={<DashboardPage />} />
       <Route path="/transactions" element={<TransactionsPage />} />
       <Route path="/categories" element={<CategoriesPage />} />
+      <Route path="/cards" element={<CardsPage />} />
       <Route path="/profile" element={<ProfilePage />} />
     </Routes>
   )

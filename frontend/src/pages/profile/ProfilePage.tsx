@@ -28,6 +28,9 @@ export default function ProfilePage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   
   const [showPassword, setShowPassword] = useState(false)
+  
+  // Monthly Income State
+  const [monthlyIncome, setMonthlyIncome] = useState('4500.00')
 
   const fetchProfile = async () => {
     setLoading(true)
@@ -37,12 +40,30 @@ export default function ProfilePage() {
       setProfile(data)
       setName(data.name)
       setEmail(data.email)
+      
+      const storedIncome = localStorage.getItem('finflow_monthly_income')
+      if (storedIncome) {
+        setMonthlyIncome(storedIncome)
+      } else {
+        localStorage.setItem('finflow_monthly_income', '4500.00')
+      }
     } catch (err: any) {
       console.error(err)
       setError('Erro ao obter os dados do perfil.')
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSaveIncome = (e: React.FormEvent) => {
+    e.preventDefault()
+    const val = parseFloat(monthlyIncome)
+    if (isNaN(val) || val < 0) {
+      setError('Por favor, insira um valor válido de renda de referência.')
+      return
+    }
+    localStorage.setItem('finflow_monthly_income', val.toFixed(2))
+    setSuccess('Renda de referência mensal atualizada com sucesso!')
   }
 
   useEffect(() => {
@@ -222,6 +243,44 @@ export default function ProfilePage() {
                   </button>
                 </div>
 
+              </form>
+            </div>
+
+            {/* Configuração de Renda de Referência Mensal */}
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-8 shadow-sm space-y-6">
+              <div className="border-b border-slate-100 pb-4">
+                <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Planejamento e Renda de Referência</h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  Defina a sua renda mensal de referência. Esse valor é utilizado como base nos cálculos de orçamento, limite de despesas e saldo disponível no seu Painel.
+                </p>
+              </div>
+
+              <form onSubmit={handleSaveIncome} className="space-y-5">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Renda Mensal de Referência (R$)</label>
+                  <div className="relative">
+                    <span className="text-sm font-bold text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">R$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      required
+                      placeholder="Ex: 4500.00"
+                      value={monthlyIncome}
+                      onChange={(e) => setMonthlyIncome(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded-xl outline-none transition-all font-mono font-bold text-slate-700"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-4 flex justify-end">
+                  <button
+                    type="submit"
+                    className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white rounded-xl text-xs font-bold transition-all duration-200"
+                  >
+                    <span>Salvar Renda</span>
+                  </button>
+                </div>
               </form>
             </div>
 

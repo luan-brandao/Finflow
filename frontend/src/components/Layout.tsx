@@ -7,7 +7,8 @@ import {
   User as UserIcon, 
   LogOut, 
   Menu, 
-  X 
+  X,
+  CreditCard
 } from 'lucide-react'
 import Logo from './Logo'
 import authService from '../services/authService'
@@ -50,6 +51,7 @@ export default function Layout({ children }: LayoutProps) {
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Transações', path: '/transactions', icon: ArrowLeftRight },
     { name: 'Categorias', path: '/categories', icon: Tag },
+    { name: 'Cartões', path: '/cards', icon: CreditCard },
     { name: 'Perfil', path: '/profile', icon: UserIcon },
   ]
 

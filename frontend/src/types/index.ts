@@ -84,6 +84,7 @@ export interface Transaction {
   type: TransactionType;
   categoryId: string;
   date: string;
+  cardId?: string; // Prepared for future card link
   createdAt?: string;
 }
 
@@ -93,6 +94,14 @@ export interface TransactionRequest {
   type: TransactionType;
   categoryId: string;
   date: string;
+  cardId?: string; // Prepared for future card link
+}
+
+export interface Card {
+  id: string;
+  name: string;
+  limit: number;
+  used: number; // Derived locally
 }
 
 export interface UserUpdateData {

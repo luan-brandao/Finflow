@@ -9,18 +9,23 @@ import {
   Loader2,
   RefreshCw,
   FolderMinus,
-  Receipt
+  Receipt,
+  CreditCard
 } from 'lucide-react'
 import Layout from '../../components/Layout'
 import dashboardService from '../../services/dashboardService'
 import userService from '../../services/userService'
-import type { DashboardResponse, User } from '../../types'
+import type { DashboardResponse, User, Card } from '../../types'
 
 export default function DashboardPage() {
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null)
   const [profile, setProfile] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+
+  // Custom Local budget and cards states
+  const [localCards, setLocalCards] = useState<Card[]>([])
+  const [monthlyIncome, setMonthlyIncome] = useState<number>(4500)
 
   // Date filters
   const [startDate, setStartDate] = useState('')
@@ -39,6 +44,28 @@ export default function DashboardPage() {
       ])
       setDashboard(dashData)
       setProfile(profData)
+
+      // Load custom Monthly Income
+      const storedIncome = localStorage.getItem('finflow_monthly_income')
+      if (storedIncome) {
+        setMonthlyIncome(parseFloat(storedIncome))
+      } else {
+        localStorage.setItem('finflow_monthly_income', '4500.00')
+        setMonthlyIncome(4500)
+      }
+
+      // Load Credit Cards
+      const storedCards = localStorage.getItem('finflow_local_cards')
+      if (storedCards) {
+        setLocalCards(JSON.parse(storedCards))
+      } else {
+        const defaultCards: Card[] = [
+          { id: 'nubank-seed', name: 'Nubank', limit: 3000, used: 350 },
+          { id: 'itau-seed', name: 'Itaú', limit: 5000, used: 1200 }
+        ]
+        localStorage.setItem('finflow_local_cards', JSON.stringify(defaultCards))
+        setLocalCards(defaultCards)
+      }
     } catch (err: any) {
       console.error(err)
       const msg = err.response?.data?.message || err.response?.data?.error || 'Erro ao carregar dados do painel.'
@@ -622,6 +649,196 @@ export default function DashboardPage() {
                   </span>
                   <span className="text-[10px] text-slate-400 font-semibold block mt-1">Quantidade total de registros</span>
                 </div>
+              </div>
+
+            </div>
+
+            {/* Visual Budget & Cards Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              
+              {/* Card 1: Roteiro e Planejamento Mensal */}
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+                <div className="border-b border-slate-100 pb-4 mb-5 flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Planejamento e Orçamento</h3>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono font-semibold">Renda de Referência</span>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Renda Mensal */}
+                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xs font-semibold">
+                        R$
+                      </div>
+                      <div>
+                        <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider block">Renda Mensal</span>
+                        <span className="text-xs text-slate-400 font-medium font-semibold">Referência cadastrada</span>
+                      </div>
+                    </div>
+                    <span className="font-extrabold text-slate-800 font-mono tabular-nums">
+                      {formatCurrency(monthlyIncome)}
+                    </span>
+                  </div>
+
+                  {/* Flow Indicator line */}
+                  <div className="flex justify-center -my-2">
+                    <div className="h-4 w-0.5 bg-slate-200 border-dashed" />
+                  </div>
+
+                  {/* Receitas */}
+                  <div className="flex items-center justify-between p-3 bg-emerald-50/50 rounded-xl">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                        <TrendingUp className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="text-[11px] text-emerald-700 font-bold uppercase tracking-wider block">Receitas Atuais</span>
+                        <span className="text-xs text-slate-400 font-medium font-semibold">Entradas acumuladas</span>
+                      </div>
+                    </div>
+                    <span className="font-extrabold text-emerald-600 font-mono tabular-nums">
+                      + {formatCurrency(dashboard.totalIncome)}
+                    </span>
+                  </div>
+
+                  {/* Flow Indicator line */}
+                  <div className="flex justify-center -my-2">
+                    <div className="h-4 w-0.5 bg-slate-200 border-dashed" />
+                  </div>
+
+                  {/* Despesas */}
+                  <div className="flex items-center justify-between p-3 bg-red-50/50 rounded-xl">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-red-50 text-red-600 flex items-center justify-center">
+                        <TrendingDown className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="text-[11px] text-red-700 font-bold uppercase tracking-wider block">Despesas Atuais</span>
+                        <span className="text-xs text-slate-400 font-medium font-semibold">Saídas acumuladas</span>
+                      </div>
+                    </div>
+                    <span className="font-extrabold text-red-600 font-mono tabular-nums">
+                      - {formatCurrency(dashboard.totalExpense)}
+                    </span>
+                  </div>
+
+                  {/* Flow Indicator line */}
+                  <div className="flex justify-center -my-2">
+                    <div className="h-4 w-0.5 bg-slate-200 border-dashed" />
+                  </div>
+
+                  {/* Valor Disponível */}
+                  {(() => {
+                    const totalAvailable = monthlyIncome + dashboard.totalIncome - dashboard.totalExpense
+                    const isPositive = totalAvailable >= 0
+                    return (
+                      <div className={`flex items-center justify-between p-3 rounded-xl ${isPositive ? 'bg-indigo-50/60' : 'bg-red-50/60'}`}>
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs font-semibold ${isPositive ? 'bg-indigo-100 text-indigo-600' : 'bg-red-100 text-red-600'}`}>
+                            =
+                          </div>
+                          <div>
+                            <span className="text-[11px] font-bold uppercase tracking-wider block text-slate-700">Valor Disponível</span>
+                            <span className="text-xs text-slate-400 font-medium font-semibold">Renda + Receitas - Despesas</span>
+                          </div>
+                        </div>
+                        <span className={`font-extrabold font-mono tabular-nums ${isPositive ? 'text-indigo-600' : 'text-red-600'}`}>
+                          {formatCurrency(totalAvailable)}
+                        </span>
+                      </div>
+                    )
+                  })()}
+
+                  {/* Percentual Comprometido & Progress Bar */}
+                  {(() => {
+                    const committedPercent = monthlyIncome > 0 
+                      ? Math.min(100, Math.round((dashboard.totalExpense / monthlyIncome) * 100)) 
+                      : 0
+                    const isOverBudget = committedPercent >= 100
+                    return (
+                      <div className="pt-2 space-y-1.5">
+                        <div className="flex items-center justify-between text-xs font-semibold">
+                          <span className="text-slate-500 font-semibold">% da Renda Comprometido</span>
+                          <span className={`font-mono font-bold ${isOverBudget ? 'text-red-600' : 'text-indigo-600'}`}>
+                            {committedPercent}%
+                          </span>
+                        </div>
+                        <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full rounded-full transition-all duration-500 ${isOverBudget ? 'bg-red-500' : committedPercent > 75 ? 'bg-amber-500' : 'bg-indigo-600'}`}
+                            style={{ width: `${committedPercent}%` }}
+                          />
+                        </div>
+                        <p className="text-[10px] text-slate-400 font-medium font-semibold">
+                          Despesas acumuladas em relação à sua renda mensal de referência.
+                        </p>
+                      </div>
+                    )
+                  })()}
+
+                </div>
+              </div>
+
+              {/* Card 2: Visão Geral de Cartões de Crédito */}
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+                <div className="border-b border-slate-100 pb-4 mb-4 flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Seus Cartões de Crédito</h3>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono font-semibold">Bandeira / Limites</span>
+                </div>
+
+                <div className="flex-1 flex flex-col justify-center">
+                  {localCards.length === 0 ? (
+                    <div className="py-12 flex flex-col items-center justify-center text-slate-400 gap-2">
+                      <CreditCard className="w-8 h-8" />
+                      <p className="text-xs font-semibold">Nenhum cartão cadastrado.</p>
+                      <p className="text-[10px] text-slate-400 text-center max-w-xs font-semibold">
+                        Adicione cartões de crédito na seção "Cartões" para visualizar o progresso dos limites aqui.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {localCards.map((card) => {
+                        const available = card.limit - card.used
+                        const percent = card.limit > 0 
+                          ? Math.min(100, Math.round((card.used / card.limit) * 100)) 
+                          : 0
+                        return (
+                          <div key={card.id} className="p-3.5 border border-slate-100 rounded-xl hover:border-slate-200 transition-colors">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <CreditCard className="w-4 h-4 text-indigo-500 shrink-0" />
+                                <span className="text-sm font-bold text-slate-800">{card.name}</span>
+                              </div>
+                              <span className="text-xs font-mono font-bold text-slate-500">
+                                {formatCurrency(card.used)} / {formatCurrency(card.limit)}
+                              </span>
+                            </div>
+
+                            {/* Progress bar */}
+                            <div className="space-y-1">
+                              <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full bg-indigo-600 rounded-full transition-all duration-500"
+                                  style={{ width: `${percent}%` }}
+                                />
+                              </div>
+                              <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold font-mono">
+                                <span>{percent}% Limite Utilizado</span>
+                                <span className="text-emerald-600 font-bold">{formatCurrency(available)} Disp.</span>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {localCards.length > 0 && (
+                  <p className="text-[10px] text-slate-400 text-center font-medium font-semibold mt-4">
+                    Limites atualizados dinamicamente com base nas despesas associadas.
+                  </p>
+                )}
               </div>
 
             </div>
