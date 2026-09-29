@@ -27,7 +27,9 @@ public record TransactionRequestDTO(
         UUID categoryId,
 
         @NotNull
-        LocalDate date
+        LocalDate date,
+
+        UUID cardId
 
 ) {
 }

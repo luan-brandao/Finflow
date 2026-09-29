@@ -4,17 +4,16 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "transactions")
+@Table(name = "monthly_incomes")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class Transaction {
+public class MonthlyIncome {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -23,30 +22,28 @@ public class Transaction {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
-    @Column(nullable = false, length = 150)
-    private String description;
+    @Column(nullable = false)
+    private int year;
+
+    @Column(nullable = false)
+    private int month;
 
     @Column(nullable = false, precision = 15, scale = 2)
     private BigDecimal amount;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private TransactionType type;
-
-    @Column(name = "category_id", nullable = false)
-    private UUID categoryId;
-
-    @Column(name = "card_id")
-    private UUID cardId;
-
-    @Column(nullable = false)
-    private LocalDate date;
-
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
     }
 }

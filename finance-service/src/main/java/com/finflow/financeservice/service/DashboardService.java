@@ -5,6 +5,7 @@ import com.finflow.financeservice.dto.DashboardResponseDTO;
 import com.finflow.financeservice.dto.MonthlySummaryDTO;
 import com.finflow.financeservice.dto.RecentTransactionDTO;
 import com.finflow.financeservice.dto.TopExpenseDTO;
+import com.finflow.financeservice.dto.CardResponseDTO;
 import com.finflow.financeservice.exception.AccessDeniedException;
 import com.finflow.financeservice.model.TransactionType;
 import com.finflow.financeservice.projection.CategorySummaryProjection;
@@ -12,6 +13,7 @@ import com.finflow.financeservice.projection.MonthlySummaryProjection;
 import com.finflow.financeservice.projection.RecentTransactionProjection;
 import com.finflow.financeservice.projection.TopExpenseProjection;
 import com.finflow.financeservice.repository.TransactionRepository;
+import com.finflow.financeservice.repository.MonthlyIncomeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.Authentication;
@@ -29,6 +31,8 @@ import java.util.UUID;
 public class DashboardService {
 
     private final TransactionRepository transactionRepository;
+    private final MonthlyIncomeRepository monthlyIncomeRepository;
+    private final CardService cardService;
 
     @Transactional(readOnly = true)
     public DashboardResponseDTO getDashboard(
@@ -119,6 +123,27 @@ public class DashboardService {
         BigDecimal balance =
                 totalIncome.subtract(totalExpense);
 
+        // --- Extensões do Dashboard (Renda Mensal e Cartões) ---
+        LocalDate referenceDate = endDate != null ? endDate : LocalDate.now();
+        int year = referenceDate.getYear();
+        int month = referenceDate.getMonthValue();
+
+        BigDecimal monthlyIncome = monthlyIncomeRepository
+                .findByUserIdAndYearAndMonth(userId, year, month)
+                .map(com.finflow.financeservice.model.MonthlyIncome::getAmount)
+                .orElse(BigDecimal.ZERO);
+
+        BigDecimal availableValue = monthlyIncome.subtract(totalExpense);
+
+        BigDecimal committedPercentage = BigDecimal.ZERO;
+        if (monthlyIncome.compareTo(BigDecimal.ZERO) > 0) {
+            committedPercentage = totalExpense
+                    .multiply(BigDecimal.valueOf(100))
+                    .divide(monthlyIncome, 2, java.math.RoundingMode.HALF_UP);
+        }
+
+        List<CardResponseDTO> cardsSummary = cardService.findAll();
+
         return new DashboardResponseDTO(
                 totalIncome,
                 totalExpense,
@@ -128,7 +153,11 @@ public class DashboardService {
                 expenseByCategory,
                 monthlySummary,
                 topExpenses,
-                recentTransactions
+                recentTransactions,
+                monthlyIncome,
+                availableValue,
+                committedPercentage,
+                cardsSummary
         );
     }
 

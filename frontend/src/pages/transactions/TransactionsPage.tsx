@@ -18,6 +18,7 @@ import {
 import Layout from '../../components/Layout'
 import transactionService from '../../services/transactionService'
 import categoryService from '../../services/categoryService'
+import cardService from '../../services/cardService'
 import type { Transaction, Category, TransactionType, Card } from '../../types'
 
 export default function TransactionsPage() {
@@ -29,7 +30,6 @@ export default function TransactionsPage() {
 
   // Credit Cards integration states
   const [localCards, setLocalCards] = useState<Card[]>([])
-  const [transactionCards, setTransactionCards] = useState<Record<string, string>>({}) // txId -> cardId
 
   // Search filter
   const [searchTerm, setSearchTerm] = useState('')
@@ -56,52 +56,19 @@ export default function TransactionsPage() {
     setLoading(true)
     setError('')
     try {
-      const [txs, cats] = await Promise.all([
+      const [txs, cats, cardsData] = await Promise.all([
         transactionService.findAll(),
-        categoryService.findAll()
+        categoryService.findAll(),
+        cardService.findAll()
       ])
       
       setTransactions(txs)
       setCategories(cats)
+      setLocalCards(cardsData)
+
       if (cats.length > 0 && !categoryId) {
         setCategoryId(cats[0].id)
       }
-
-      // Load Local Credit Cards & Transaction card associations
-      const storedCards = localStorage.getItem('finflow_local_cards')
-      const storedAssociations = localStorage.getItem('finflow_transaction_cards')
-      
-      let parsedCards: Card[] = []
-      let parsedAssoc: Record<string, string> = {}
-
-      if (storedCards) {
-        parsedCards = JSON.parse(storedCards)
-      } else {
-        parsedCards = [
-          { id: 'nubank-seed', name: 'Nubank', limit: 3000, used: 350 },
-          { id: 'itau-seed', name: 'Itaú', limit: 5000, used: 1200 }
-        ]
-        localStorage.setItem('finflow_local_cards', JSON.stringify(parsedCards))
-      }
-
-      if (storedAssociations) {
-        parsedAssoc = JSON.parse(storedAssociations)
-      }
-      
-      setTransactionCards(parsedAssoc)
-
-      // Dynamic used limit calculation for cards:
-      // used limit = sum of all associated expense transactions
-      const updatedCards = parsedCards.map(card => {
-        const sum = txs
-          .filter(tx => tx.type === 'EXPENSE' && parsedAssoc[tx.id] === card.id)
-          .reduce((total, tx) => total + tx.amount, 0)
-        return { ...card, used: sum }
-      })
-
-      localStorage.setItem('finflow_local_cards', JSON.stringify(updatedCards))
-      setLocalCards(updatedCards)
-
     } catch (err: any) {
       console.error(err)
       setError('Erro ao carregar os lançamentos. Verifique se o backend está online.')
@@ -135,7 +102,7 @@ export default function TransactionsPage() {
     setAmount(tx.amount.toString())
     setType(tx.type)
     setCategoryId(tx.categoryId)
-    setCardId(transactionCards[tx.id] || '')
+    setCardId(tx.cardId || '')
     setDate(tx.date)
     setIsFormOpen(true)
     setError('')
@@ -169,29 +136,18 @@ export default function TransactionsPage() {
       amount: numericAmount,
       type,
       categoryId,
-      date
+      date,
+      cardId: (type === 'EXPENSE' && cardId) ? cardId : undefined
     }
 
     try {
-      let savedTx: Transaction
       if (editingId) {
-        savedTx = await transactionService.update(editingId, payload)
+        await transactionService.update(editingId, payload)
         setSuccess('Lançamento atualizado com sucesso!')
       } else {
-        savedTx = await transactionService.create(payload)
+        await transactionService.create(payload)
         setSuccess('Lançamento registrado com sucesso!')
       }
-
-      // Associate transaction with selected Credit Card locally
-      const updatedAssoc = { ...transactionCards }
-      if (type === 'EXPENSE' && cardId) {
-        updatedAssoc[savedTx.id] = cardId
-      } else {
-        delete updatedAssoc[savedTx.id]
-      }
-
-      localStorage.setItem('finflow_transaction_cards', JSON.stringify(updatedAssoc))
-      setTransactionCards(updatedAssoc)
 
       setIsFormOpen(false)
       fetchData()
@@ -212,13 +168,6 @@ export default function TransactionsPage() {
     setLoading(true)
     try {
       await transactionService.delete(id)
-      
-      // Clean up association
-      const updatedAssoc = { ...transactionCards }
-      delete updatedAssoc[id]
-      localStorage.setItem('finflow_transaction_cards', JSON.stringify(updatedAssoc))
-      setTransactionCards(updatedAssoc)
-
       setSuccess('Lançamento removido com sucesso!')
       fetchData()
     } catch (err: any) {
@@ -239,17 +188,16 @@ export default function TransactionsPage() {
     return categories.find(c => c.id === catId)?.name || 'Sem Categoria'
   }
 
-  const getCardName = (txId: string) => {
-    const cId = transactionCards[txId]
-    if (!cId) return null
-    return localCards.find(c => c.id === cId)?.name || null
+  const getCardName = (txCardId?: string) => {
+    if (!txCardId) return null
+    return localCards.find(c => c.id === txCardId)?.name || null
   }
 
   // Triple Filter logic: Type + Category + Credit Card + Instant Description Search
   const filteredTransactions = transactions.filter(tx => {
     const matchesType = filterType === 'ALL' || tx.type === filterType
     const matchesCategory = filterCategory === 'ALL' || tx.categoryId === filterCategory
-    const matchesCard = filterCard === 'ALL' || transactionCards[tx.id] === filterCard
+    const matchesCard = filterCard === 'ALL' || tx.cardId === filterCard
     const matchesSearch = tx.description.toLowerCase().includes(searchTerm.toLowerCase())
     return matchesType && matchesCategory && matchesCard && matchesSearch
   })
@@ -519,7 +467,7 @@ export default function TransactionsPage() {
             <div className="divide-y divide-slate-100">
               {filteredTransactions.map((tx) => {
                 const isIncome = tx.type === 'INCOME'
-                const cardName = getCardName(tx.id)
+                const cardName = getCardName(tx.cardId)
                 return (
                   <div key={tx.id} className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/30 transition-colors">
                     

@@ -11,6 +11,7 @@ import {
   Wallet
 } from 'lucide-react'
 import Layout from '../../components/Layout'
+import cardService from '../../services/cardService'
 import type { Card } from '../../types'
 
 export default function CardsPage() {
@@ -26,42 +27,30 @@ export default function CardsPage() {
   
   const [name, setName] = useState('')
   const [limit, setLimit] = useState('')
-  const [used, setUsed] = useState('0')
 
-  // Load cards from LocalStorage
-  const loadLocalCards = () => {
+  // Load cards from API
+  const loadCards = async () => {
     setLoading(true)
+    setError('')
     try {
-      const stored = localStorage.getItem('finflow_local_cards')
-      if (stored) {
-        setCards(JSON.parse(stored))
-      } else {
-        // Seed some defaults so it doesn't look blank on first load, but fully clear it can also be done.
-        // Let's seed Nubank and Itaú to make the design shine instantly, but fully editable!
-        const defaultCards: Card[] = [
-          { id: 'nubank-seed', name: 'Nubank', limit: 3000, used: 350 },
-          { id: 'itau-seed', name: 'Itaú', limit: 5000, used: 1200 }
-        ]
-        localStorage.setItem('finflow_local_cards', JSON.stringify(defaultCards))
-        setCards(defaultCards)
-      }
-    } catch (err) {
+      const data = await cardService.findAll()
+      setCards(data)
+    } catch (err: any) {
       console.error(err)
-      setError('Erro ao ler os cartões locais.')
+      setError('Erro ao carregar seus cartões de crédito.')
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    loadLocalCards()
+    loadCards()
   }, [])
 
   const handleOpenCreate = () => {
     setEditingId(null)
     setName('')
     setLimit('')
-    setUsed('0')
     setIsFormOpen(true)
     setError('')
     setSuccess('')
@@ -71,7 +60,6 @@ export default function CardsPage() {
     setEditingId(card.id)
     setName(card.name)
     setLimit(card.limit.toString())
-    setUsed(card.used.toString())
     setIsFormOpen(true)
     setError('')
     setSuccess('')
@@ -90,9 +78,8 @@ export default function CardsPage() {
     }
 
     const numericLimit = parseFloat(limit)
-    const numericUsed = parseFloat(used || '0')
-    if (isNaN(numericLimit) || numericLimit <= 0) {
-      setError('O limite total deve ser maior que zero.')
+    if (isNaN(numericLimit) || numericLimit < 0) {
+      setError('O limite de crédito deve ser um valor válido.')
       return
     }
 
@@ -101,50 +88,43 @@ export default function CardsPage() {
     setIsSubmitting(true)
 
     try {
-      let updatedCards = [...cards]
       if (editingId) {
-        updatedCards = cards.map(c => 
-          c.id === editingId 
-            ? { ...c, name: name.trim(), limit: numericLimit, used: numericUsed } 
-            : c
-        )
+        await cardService.update(editingId, {
+          name: name.trim(),
+          creditLimit: numericLimit
+        })
         setSuccess('Cartão de crédito atualizado com sucesso!')
       } else {
-        const newCard: Card = {
-          id: `card-${Date.now()}`,
+        await cardService.create({
           name: name.trim(),
-          limit: numericLimit,
-          used: numericUsed
-        }
-        updatedCards.push(newCard)
-        setSuccess('Novo cartão de crédito cadastrado!')
+          creditLimit: numericLimit
+        })
+        setSuccess('Novo cartão de crédito cadastrado com sucesso!')
       }
 
-      localStorage.setItem('finflow_local_cards', JSON.stringify(updatedCards))
-      setCards(updatedCards)
       setIsFormOpen(false)
-    } catch (err) {
+      await loadCards()
+    } catch (err: any) {
       console.error(err)
-      setError('Erro ao salvar o cartão no armazenamento local.')
+      setError(err.response?.data?.message || err.response?.data?.error || 'Erro ao salvar o cartão de crédito.')
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const handleDelete = (id: string) => {
-    if (!window.confirm('Tem certeza de que deseja remover este cartão?')) {
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Tem certeza de que deseja remover este cartão? As despesas associadas continuarão existindo sem cartão.')) {
       return
     }
     setError('')
     setSuccess('')
     try {
-      const filtered = cards.filter(c => c.id !== id)
-      localStorage.setItem('finflow_local_cards', JSON.stringify(filtered))
-      setCards(filtered)
+      await cardService.delete(id)
       setSuccess('Cartão excluído com sucesso!')
-    } catch (err) {
+      await loadCards()
+    } catch (err: any) {
       console.error(err)
-      setError('Erro ao excluir o cartão do armazenamento local.')
+      setError(err.response?.data?.message || err.response?.data?.error || 'Erro ao excluir o cartão de crédito.')
     }
   }
 
@@ -175,13 +155,13 @@ export default function CardsPage() {
           </button>
         </div>
 
-        {/* Future Backend Integration Warning Indicator */}
-        <div className="p-4 bg-indigo-50/50 border border-indigo-100/50 rounded-2xl flex items-start gap-3">
-          <Wallet className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
-          <div className="text-xs text-indigo-700 font-semibold leading-relaxed">
-            <span className="block font-bold">Nota de Desenvolvimento</span>
+        {/* Backend Sincronizado Indicator */}
+        <div className="p-4 bg-emerald-50 border border-emerald-100/50 rounded-2xl flex items-start gap-3">
+          <Wallet className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+          <div className="text-xs text-emerald-800 font-semibold leading-relaxed">
+            <span className="block font-bold">Ambiente Conectado</span>
             <span className="block font-normal mt-0.5">
-              Esta área de cartões está totalmente interativa no lado do cliente. As informações estão sendo armazenadas com segurança no seu navegador e estão preparadas para sincronizar automaticamente com a API do Finflow assim que o backend for atualizado.
+              Sua carteira de cartões está totalmente conectada em tempo real ao backend do Finflow. Os limites utilizados são calculados automaticamente de forma segura com base nos lançamentos efetuados.
             </span>
           </div>
         </div>
@@ -216,7 +196,7 @@ export default function CardsPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
               
               {/* Card Name */}
               <div className="space-y-1.5">
@@ -238,7 +218,7 @@ export default function CardsPage() {
                 <input
                   type="number"
                   step="0.01"
-                  min="1"
+                  min="0"
                   required
                   placeholder="Ex: 5000"
                   value={limit}
@@ -247,22 +227,8 @@ export default function CardsPage() {
                 />
               </div>
 
-              {/* Used Limit simulation */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Limite Utilizado (R$)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0,00"
-                  value={used}
-                  onChange={(e) => setUsed(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 hover:border-slate-300 focus:border-indigo-500 rounded-xl outline-none transition-all font-mono font-bold text-slate-700"
-                />
-              </div>
-
               {/* Actions */}
-              <div className="sm:col-span-3 flex justify-end gap-3 pt-3">
+              <div className="sm:col-span-2 flex justify-end gap-3 pt-3">
                 <button
                   type="button"
                   onClick={handleCloseForm}
@@ -285,11 +251,11 @@ export default function CardsPage() {
           </div>
         )}
 
-        {/* Interactive Visual Cards Grid (Highly Premium Human-Designed Layout) */}
+        {/* Interactive Visual Cards Grid */}
         {loading ? (
           <div className="py-24 flex flex-col items-center justify-center gap-3">
             <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
-            <p className="text-sm font-semibold text-slate-500">Buscando cartões de crédito...</p>
+            <p className="text-sm font-semibold text-slate-500">Buscando seus cartões de crédito...</p>
           </div>
         ) : cards.length === 0 ? (
           <div className="py-24 text-center text-slate-400 flex flex-col items-center justify-center gap-3 bg-white border border-slate-200/80 rounded-2xl shadow-sm">

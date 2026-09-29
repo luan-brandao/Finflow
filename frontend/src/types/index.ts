@@ -74,6 +74,12 @@ export interface DashboardResponse {
   monthlySummary: MonthlySummary[];
   topExpenses: TopExpense[];
   recentTransactions: RecentTransaction[];
+  
+  // Extended fields
+  monthlyIncome?: number;
+  availableValue?: number;
+  committedPercentage?: number;
+  cardsSummary?: Card[];
 }
 
 export interface Transaction {
@@ -99,9 +105,24 @@ export interface TransactionRequest {
 
 export interface Card {
   id: string;
+  userId?: string;
   name: string;
+  creditLimit?: number;
   limit: number;
-  used: number; // Derived locally
+  used: number;
+  available?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface MonthlyIncome {
+  id: string;
+  userId: string;
+  year: number;
+  month: number;
+  amount: number;
+  createdAt: string;
+  updatedAt?: string;
 }
 
 export interface UserUpdateData {

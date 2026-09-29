@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import Layout from '../../components/Layout'
 import userService from '../../services/userService'
+import monthlyIncomeService from '../../services/monthlyIncomeService'
 import type { User } from '../../types'
 
 export default function ProfilePage() {
@@ -29,8 +30,10 @@ export default function ProfilePage() {
   
   const [showPassword, setShowPassword] = useState(false)
   
-  // Monthly Income State
-  const [monthlyIncome, setMonthlyIncome] = useState('4500.00')
+  // Monthly Income State (Fully Integrated with backend)
+  const [incomeAmount, setIncomeAmount] = useState('4500.00')
+  const [incomeYear, setIncomeYear] = useState(new Date().getFullYear())
+  const [incomeMonth, setIncomeMonth] = useState(new Date().getMonth() + 1)
 
   const fetchProfile = async () => {
     setLoading(true)
@@ -41,11 +44,16 @@ export default function ProfilePage() {
       setName(data.name)
       setEmail(data.email)
       
-      const storedIncome = localStorage.getItem('finflow_monthly_income')
-      if (storedIncome) {
-        setMonthlyIncome(storedIncome)
-      } else {
-        localStorage.setItem('finflow_monthly_income', '4500.00')
+      try {
+        const income = await monthlyIncomeService.findCurrentMonthIncome()
+        setIncomeAmount(income.amount.toString())
+        setIncomeYear(income.year)
+        setIncomeMonth(income.month)
+      } catch {
+        console.log('Nenhuma renda mensal cadastrada para o mês atual no backend, utilizando padrões locais.')
+        setIncomeAmount('4500.00')
+        setIncomeYear(new Date().getFullYear())
+        setIncomeMonth(new Date().getMonth() + 1)
       }
     } catch (err: any) {
       console.error(err)
@@ -55,15 +63,26 @@ export default function ProfilePage() {
     }
   }
 
-  const handleSaveIncome = (e: React.FormEvent) => {
+  const handleSaveIncome = async (e: React.FormEvent) => {
     e.preventDefault()
-    const val = parseFloat(monthlyIncome)
+    const val = parseFloat(incomeAmount)
     if (isNaN(val) || val < 0) {
       setError('Por favor, insira um valor válido de renda de referência.')
       return
     }
-    localStorage.setItem('finflow_monthly_income', val.toFixed(2))
-    setSuccess('Renda de referência mensal atualizada com sucesso!')
+    setError('')
+    setSuccess('')
+    try {
+      await monthlyIncomeService.createOrUpdate({
+        year: incomeYear,
+        month: incomeMonth,
+        amount: val
+      })
+      setSuccess('Renda de referência mensal atualizada no backend com sucesso!')
+    } catch (err: any) {
+      console.error(err)
+      setError(err.response?.data?.message || err.response?.data?.error || 'Erro ao salvar a renda de referência.')
+    }
   }
 
   useEffect(() => {
@@ -246,31 +265,73 @@ export default function ProfilePage() {
               </form>
             </div>
 
-            {/* Configuração de Renda de Referência Mensal */}
+            {/* Configuração de Renda de Referência Mensal (Backend-backed) */}
             <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-8 shadow-sm space-y-6">
               <div className="border-b border-slate-100 pb-4">
                 <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Planejamento e Renda de Referência</h3>
                 <p className="text-xs text-slate-400 mt-1">
-                  Defina a sua renda mensal de referência. Esse valor é utilizado como base nos cálculos de orçamento, limite de despesas e saldo disponível no seu Painel.
+                  Defina a sua renda mensal de referência para qualquer período. Esse valor é utilizado como base nos cálculos de orçamento, limite de despesas e saldo disponível no seu Painel.
                 </p>
               </div>
 
               <form onSubmit={handleSaveIncome} className="space-y-5">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Renda Mensal de Referência (R$)</label>
-                  <div className="relative">
-                    <span className="text-sm font-bold text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">R$</span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  
+                  {/* Year selector */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Ano de Referência</label>
                     <input
                       type="number"
-                      step="0.01"
-                      min="0"
+                      min="1900"
+                      max="2100"
                       required
-                      placeholder="Ex: 4500.00"
-                      value={monthlyIncome}
-                      onChange={(e) => setMonthlyIncome(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded-xl outline-none transition-all font-mono font-bold text-slate-700"
+                      value={incomeYear}
+                      onChange={(e) => setIncomeYear(parseInt(e.target.value))}
+                      className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded-xl outline-none transition-all font-semibold text-slate-700 font-mono"
                     />
                   </div>
+
+                  {/* Month selector */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Mês de Referência</label>
+                    <select
+                      value={incomeMonth}
+                      onChange={(e) => setIncomeMonth(parseInt(e.target.value))}
+                      className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded-xl outline-none transition-all font-semibold text-slate-700 cursor-pointer"
+                    >
+                      <option value="1">Janeiro</option>
+                      <option value="2">Fevereiro</option>
+                      <option value="3">Março</option>
+                      <option value="4">Abril</option>
+                      <option value="5">Maio</option>
+                      <option value="6">Junho</option>
+                      <option value="7">Julho</option>
+                      <option value="8">Agosto</option>
+                      <option value="9">Setembro</option>
+                      <option value="10">Outubro</option>
+                      <option value="11">Novembro</option>
+                      <option value="12">Dezembro</option>
+                    </select>
+                  </div>
+
+                  {/* Income amount */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Valor de Renda (R$)</label>
+                    <div className="relative">
+                      <span className="text-sm font-bold text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">R$</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        required
+                        placeholder="Ex: 4500.00"
+                        value={incomeAmount}
+                        onChange={(e) => setIncomeAmount(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded-xl outline-none transition-all font-mono font-bold text-slate-700"
+                      />
+                    </div>
+                  </div>
+
                 </div>
 
                 <div className="pt-4 flex justify-end">

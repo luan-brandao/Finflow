@@ -23,10 +23,6 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  // Custom Local budget and cards states
-  const [localCards, setLocalCards] = useState<Card[]>([])
-  const [monthlyIncome, setMonthlyIncome] = useState<number>(4500)
-
   // Date filters
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
@@ -44,28 +40,6 @@ export default function DashboardPage() {
       ])
       setDashboard(dashData)
       setProfile(profData)
-
-      // Load custom Monthly Income
-      const storedIncome = localStorage.getItem('finflow_monthly_income')
-      if (storedIncome) {
-        setMonthlyIncome(parseFloat(storedIncome))
-      } else {
-        localStorage.setItem('finflow_monthly_income', '4500.00')
-        setMonthlyIncome(4500)
-      }
-
-      // Load Credit Cards
-      const storedCards = localStorage.getItem('finflow_local_cards')
-      if (storedCards) {
-        setLocalCards(JSON.parse(storedCards))
-      } else {
-        const defaultCards: Card[] = [
-          { id: 'nubank-seed', name: 'Nubank', limit: 3000, used: 350 },
-          { id: 'itau-seed', name: 'Itaú', limit: 5000, used: 1200 }
-        ]
-        localStorage.setItem('finflow_local_cards', JSON.stringify(defaultCards))
-        setLocalCards(defaultCards)
-      }
     } catch (err: any) {
       console.error(err)
       const msg = err.response?.data?.message || err.response?.data?.error || 'Erro ao carregar dados do painel.'
@@ -582,7 +556,11 @@ export default function DashboardPage() {
             <p className="text-sm font-semibold text-slate-500">Sincronizando estatísticas...</p>
           </div>
         ) : dashboard ? (
-          <div className="space-y-10 animate-fade-in">
+          (() => {
+            const monthlyIncome = dashboard.monthlyIncome || 0
+            const localCards: Card[] = dashboard.cardsSummary || []
+            return (
+              <div className="space-y-10 animate-fade-in">
             
             {/* 4 Cards Stat Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -963,6 +941,8 @@ export default function DashboardPage() {
             </div>
 
           </div>
+            )
+          })()
         ) : (
           <div className="py-12 text-center text-slate-400 font-medium">
             Nenhum dado financeiro encontrado para este período. Comece a lançar transações.

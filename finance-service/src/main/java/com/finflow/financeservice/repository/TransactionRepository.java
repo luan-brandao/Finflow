@@ -177,4 +177,12 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
             @Param("endDate") LocalDate endDate,
             Pageable pageable
     );
+
+    @Query("""
+            SELECT COALESCE(SUM(t.amount), 0)
+            FROM Transaction t
+            WHERE t.cardId = :cardId
+              AND t.type = com.finflow.financeservice.model.TransactionType.EXPENSE
+            """)
+    BigDecimal sumExpenseByCardId(@Param("cardId") UUID cardId);
 }

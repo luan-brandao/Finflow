@@ -12,6 +12,12 @@ public record DashboardResponseDTO(
         List<CategorySummaryDTO> expenseByCategory,
         List<MonthlySummaryDTO> monthlySummary,
         List<TopExpenseDTO> topExpenses,
-        List<RecentTransactionDTO> recentTransactions
+        List<RecentTransactionDTO> recentTransactions,
+
+        // Extended fields
+        BigDecimal monthlyIncome,
+        BigDecimal availableValue,
+        BigDecimal committedPercentage,
+        List<CardResponseDTO> cardsSummary
 ) {
 }

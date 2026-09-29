@@ -23,6 +23,8 @@ public record TransactionResponseDTO(
 
         LocalDate date,
 
+        UUID cardId,
+
         LocalDateTime createdAt
 
 ) {

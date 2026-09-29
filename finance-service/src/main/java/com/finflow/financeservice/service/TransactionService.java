@@ -9,6 +9,7 @@ import com.finflow.financeservice.mapper.TransactionMapper;
 import com.finflow.financeservice.model.Transaction;
 import com.finflow.financeservice.repository.CategoryRepository;
 import com.finflow.financeservice.repository.TransactionRepository;
+import com.finflow.financeservice.repository.CardRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -25,6 +26,7 @@ public class TransactionService {
     private final TransactionRepository transactionRepository;
     private final TransactionMapper transactionMapper;
     private final CategoryRepository categoryRepository;
+    private final CardRepository cardRepository;
 
     @Transactional
     public TransactionResponseDTO create(TransactionRequestDTO request) {
@@ -32,6 +34,7 @@ public class TransactionService {
         UUID userId = getAuthenticatedUserId();
 
         validateCategory(request.categoryId(), userId);
+        validateCard(request.cardId(), request.type(), userId);
 
         Transaction transaction = new Transaction();
 
@@ -40,6 +43,7 @@ public class TransactionService {
         transaction.setAmount(request.amount());
         transaction.setType(request.type());
         transaction.setCategoryId(request.categoryId());
+        transaction.setCardId(request.cardId());
         transaction.setDate(request.date());
 
         Transaction savedTransaction =
@@ -81,11 +85,13 @@ public class TransactionService {
         Transaction transaction = findUserTransaction(id, userId);
 
         validateCategory(request.categoryId(), userId);
+        validateCard(request.cardId(), request.type(), userId);
 
         transaction.setDescription(request.description());
         transaction.setAmount(request.amount());
         transaction.setType(request.type());
         transaction.setCategoryId(request.categoryId());
+        transaction.setCardId(request.cardId());
         transaction.setDate(request.date());
 
         Transaction updatedTransaction =
@@ -124,6 +130,36 @@ public class TransactionService {
         if (!category.getUserId().equals(userId)) {
             throw new AccessDeniedException(
                     "Você não tem acesso a esta categoria."
+            );
+        }
+    }
+
+    private void validateCard(
+            UUID cardId,
+            com.finflow.financeservice.model.TransactionType type,
+            UUID userId
+    ) {
+        if (cardId == null) {
+            return;
+        }
+
+        if (type == com.finflow.financeservice.model.TransactionType.INCOME) {
+            throw new IllegalArgumentException(
+                    "Receitas não podem ser associadas a um cartão de crédito."
+            );
+        }
+
+        var card = cardRepository
+                .findById(cardId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Cartão não encontrado."
+                        )
+                );
+
+        if (!card.getUserId().equals(userId)) {
+            throw new AccessDeniedException(
+                    "Você não tem acesso a este cartão de crédito."
             );
         }
     }
