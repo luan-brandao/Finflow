@@ -35,6 +35,7 @@ public class TransactionService {
 
         validateCategory(request.categoryId(), userId);
         validateCard(request.cardId(), request.type(), userId);
+        validateCardLimit(request.cardId(), request.type(), request.amount(), null, userId);
 
         Transaction transaction = new Transaction();
 
@@ -86,6 +87,7 @@ public class TransactionService {
 
         validateCategory(request.categoryId(), userId);
         validateCard(request.cardId(), request.type(), userId);
+        validateCardLimit(request.cardId(), request.type(), request.amount(), id, userId);
 
         transaction.setDescription(request.description());
         transaction.setAmount(request.amount());
@@ -160,6 +162,44 @@ public class TransactionService {
         if (!card.getUserId().equals(userId)) {
             throw new AccessDeniedException(
                     "Você não tem acesso a este cartão de crédito."
+            );
+        }
+    }
+
+    private void validateCardLimit(
+            UUID cardId,
+            com.finflow.financeservice.model.TransactionType type,
+            java.math.BigDecimal amount,
+            UUID excludeTransactionId,
+            UUID userId
+    ) {
+        if (cardId == null || type != com.finflow.financeservice.model.TransactionType.EXPENSE) {
+            return;
+        }
+
+        var card = cardRepository
+                .findById(cardId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Cartão não encontrado."
+                        )
+                );
+
+        java.math.BigDecimal used = transactionRepository.sumExpenseByCardId(cardId);
+
+        if (excludeTransactionId != null) {
+            var oldTx = transactionRepository.findByIdAndUserId(excludeTransactionId, userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Transação não encontrada."));
+            if (oldTx.getCardId() != null && oldTx.getCardId().equals(cardId) && oldTx.getType() == com.finflow.financeservice.model.TransactionType.EXPENSE) {
+                used = used.subtract(oldTx.getAmount());
+            }
+        }
+
+        java.math.BigDecimal newTotal = used.add(amount);
+        if (newTotal.compareTo(card.getCreditLimit()) > 0) {
+            java.math.BigDecimal available = card.getCreditLimit().subtract(used);
+            throw new IllegalArgumentException(
+                    "Esta despesa ultrapassa o limite disponível do cartão. Limite disponível: R$ " + available
             );
         }
     }

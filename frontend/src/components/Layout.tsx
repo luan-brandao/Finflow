@@ -88,10 +88,12 @@ export default function Layout({ children }: LayoutProps) {
           {menuItems.map((item) => {
             const isActive = location.pathname === item.path
             const Icon = item.icon
+            const tourId = 'tour-nav-' + item.path.substring(1)
             return (
               <Link
                 key={item.path}
                 to={item.path}
+                id={tourId}
                 className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                   isActive
                     ? 'bg-indigo-50 text-indigo-600 font-semibold'

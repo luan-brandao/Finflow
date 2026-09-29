@@ -131,6 +131,22 @@ export default function TransactionsPage() {
       return
     }
 
+    if (type === 'EXPENSE' && cardId) {
+      const selectedCard = localCards.find(c => c.id === cardId)
+      if (selectedCard) {
+        let currentUsed = selectedCard.used
+        const originalTx = transactions.find(t => t.id === editingId)
+        if (originalTx && originalTx.cardId === cardId && originalTx.type === 'EXPENSE') {
+          currentUsed = Math.max(0, currentUsed - originalTx.amount)
+        }
+        const availableLimit = selectedCard.limit - currentUsed
+        if (numericAmount > availableLimit) {
+          setError(`Esta despesa ultrapassa o limite disponível do cartão. Limite disponível: ${formatCurrency(availableLimit)}`)
+          return;
+        }
+      }
+    }
+
     setError('')
     setSuccess('')
     setIsSubmitting(true)
@@ -400,6 +416,39 @@ export default function TransactionsPage() {
                   ))}
                 </select>
               </div>
+
+              {type === 'EXPENSE' && cardId && (() => {
+                const selectedCard = localCards.find(c => c.id === cardId)
+                if (!selectedCard) return null
+                let currentUsed = selectedCard.used
+                const originalTx = transactions.find(t => t.id === editingId)
+                if (originalTx && originalTx.cardId === cardId && originalTx.type === 'EXPENSE') {
+                  currentUsed = Math.max(0, currentUsed - originalTx.amount)
+                }
+                const availableLimit = selectedCard.limit - currentUsed
+                const inputVal = parseFloat(amount) || 0
+                const isExceeded = inputVal > availableLimit
+
+                return (
+                  <div className="lg:col-span-6 p-3.5 bg-indigo-50 border border-indigo-100/50 rounded-xl space-y-2 mt-2">
+                    <div className="flex flex-wrap items-center justify-between text-xs font-semibold gap-2">
+                      <span className="text-indigo-700 font-bold">Resumo do Cartão {selectedCard.name}:</span>
+                      <div className="flex gap-4 text-[11px] font-mono font-bold text-slate-500">
+                        <span>Limite: {formatCurrency(selectedCard.limit)}</span>
+                        <span>Utilizado: {formatCurrency(currentUsed)}</span>
+                        <span className={isExceeded ? "text-red-600" : "text-emerald-600 font-extrabold"}>
+                          Disponível: {formatCurrency(availableLimit)}
+                        </span>
+                      </div>
+                    </div>
+                    {isExceeded && (
+                      <p className="text-xs font-bold text-red-600 flex items-center gap-1.5 animate-pulse">
+                        ⚠️ Esta despesa ultrapassa o limite disponível do cartão.
+                      </p>
+                    )}
+                  </div>
+                )
+              })()}
 
               {/* Date Input */}
               <div className="space-y-1.5">

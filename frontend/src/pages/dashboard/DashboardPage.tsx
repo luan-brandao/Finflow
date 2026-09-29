@@ -563,7 +563,7 @@ export default function DashboardPage() {
               <div className="space-y-10 animate-fade-in">
             
             {/* 4 Cards Stat Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div id="tour-stats" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               
               {/* Card 1: Balance */}
               <div className="p-6 bg-white border border-slate-200/80 rounded-2xl shadow-sm hover:shadow-md/5 transition-all">
@@ -635,7 +635,7 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               
               {/* Card 1: Roteiro e Planejamento Mensal */}
-              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+              <div id="tour-budget" className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
                 <div className="border-b border-slate-100 pb-4 mb-5 flex items-center justify-between">
                   <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Planejamento e Orçamento</h3>
                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono font-semibold">Renda de Referência</span>
@@ -758,7 +758,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Card 2: Visão Geral de Cartões de Crédito */}
-              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+              <div id="tour-cards" className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
                 <div className="border-b border-slate-100 pb-4 mb-4 flex items-center justify-between">
                   <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Seus Cartões de Crédito</h3>
                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono font-semibold">Bandeira / Limites</span>

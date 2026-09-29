@@ -9,7 +9,14 @@ export const dashboardService = {
       params.endDate = endDate
     }
     const response = await api.get<DashboardResponse>('/api/dashboard', { params })
-    return response.data
+    const data = response.data
+    if (data.cardsSummary) {
+      data.cardsSummary = data.cardsSummary.map((card: any) => ({
+        ...card,
+        limit: card.creditLimit // Map creditLimit to limit for backward compatibility in UI
+      }))
+    }
+    return data
   }
 }
 

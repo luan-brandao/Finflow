@@ -75,6 +75,11 @@ public class CardService {
             throw new IllegalArgumentException("O limite de crédito do cartão não pode ser negativo.");
         }
 
+        BigDecimal used = transactionRepository.sumExpenseByCardId(id);
+        if (request.creditLimit().compareTo(used) < 0) {
+            throw new IllegalArgumentException("O limite do cartão não pode ser reduzido para um valor menor que o total já utilizado (R$ " + used + ").");
+        }
+
         card.setName(request.name().trim());
         card.setCreditLimit(request.creditLimit());
 
