@@ -19,6 +19,7 @@ import Layout from '../../components/Layout'
 import transactionService from '../../services/transactionService'
 import categoryService from '../../services/categoryService'
 import cardService from '../../services/cardService'
+import ConfirmModal from '../../components/ConfirmModal'
 import type { Transaction, Category, TransactionType, Card } from '../../types'
 
 export default function TransactionsPage() {
@@ -30,6 +31,9 @@ export default function TransactionsPage() {
 
   // Credit Cards integration states
   const [localCards, setLocalCards] = useState<Card[]>([])
+
+  // Confirmation state
+  const [deleteId, setDeleteId] = useState<string | null>(null)
 
   // Search filter
   const [searchTerm, setSearchTerm] = useState('')
@@ -159,23 +163,7 @@ export default function TransactionsPage() {
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Tem certeza que deseja remover este lançamento financeiro?')) {
-      return
-    }
-    setError('')
-    setSuccess('')
-    setLoading(true)
-    try {
-      await transactionService.delete(id)
-      setSuccess('Lançamento removido com sucesso!')
-      fetchData()
-    } catch (err: any) {
-      console.error(err)
-      setError(err.response?.data?.message || err.response?.data?.error || 'Erro ao remover lançamento.')
-      setLoading(false)
-    }
-  }
+  // handleDelete is replaced by ConfirmModal inline action
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -521,7 +509,7 @@ export default function TransactionsPage() {
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(tx.id)}
+                          onClick={() => setDeleteId(tx.id)}
                           className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
                           title="Remover"
                         >
@@ -538,6 +526,22 @@ export default function TransactionsPage() {
           )}
 
         </div>
+
+        <ConfirmModal
+          isOpen={!!deleteId}
+          title="Excluir Lançamento Financeiro"
+          message="Tem certeza de que deseja remover este lançamento? Esta ação é irreversível e o valor será excluído do seu painel e extrato."
+          onConfirm={async () => {
+            if (deleteId) {
+              setError('')
+              setSuccess('')
+              await transactionService.delete(deleteId)
+              setSuccess('Lançamento removido com sucesso!')
+              fetchData()
+            }
+          }}
+          onClose={() => setDeleteId(null)}
+        />
 
       </div>
     </Layout>

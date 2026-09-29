@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import Layout from '../../components/Layout'
 import cardService from '../../services/cardService'
+import ConfirmModal from '../../components/ConfirmModal'
 import type { Card } from '../../types'
 
 export default function CardsPage() {
@@ -24,6 +25,9 @@ export default function CardsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+
+  // Confirmation state
+  const [deleteId, setDeleteId] = useState<string | null>(null)
   
   const [name, setName] = useState('')
   const [limit, setLimit] = useState('')
@@ -112,21 +116,7 @@ export default function CardsPage() {
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Tem certeza de que deseja remover este cartão? As despesas associadas continuarão existindo sem cartão.')) {
-      return
-    }
-    setError('')
-    setSuccess('')
-    try {
-      await cardService.delete(id)
-      setSuccess('Cartão excluído com sucesso!')
-      await loadCards()
-    } catch (err: any) {
-      console.error(err)
-      setError(err.response?.data?.message || err.response?.data?.error || 'Erro ao excluir o cartão de crédito.')
-    }
-  }
+  // handleDelete is replaced by ConfirmModal inline action
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -332,7 +322,7 @@ export default function CardsPage() {
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
                     <button
-                      onClick={() => handleDelete(card.id)}
+                      onClick={() => setDeleteId(card.id)}
                       className="p-1.5 text-red-300 hover:text-red-400 rounded-md hover:bg-white/10"
                       title="Excluir"
                     >
@@ -345,6 +335,22 @@ export default function CardsPage() {
             })}
           </div>
         )}
+
+        <ConfirmModal
+          isOpen={!!deleteId}
+          title="Excluir Cartão de Crédito"
+          message="Tem certeza de que deseja remover este cartão? As despesas associadas continuarão existindo sem cartão no seu painel."
+          onConfirm={async () => {
+            if (deleteId) {
+              setError('')
+              setSuccess('')
+              await cardService.delete(deleteId)
+              setSuccess('Cartão excluído com sucesso!')
+              await loadCards()
+            }
+          }}
+          onClose={() => setDeleteId(null)}
+        />
 
       </div>
     </Layout>

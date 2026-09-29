@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import Layout from '../../components/Layout'
 import categoryService from '../../services/categoryService'
+import ConfirmModal from '../../components/ConfirmModal'
 import type { Category } from '../../types'
 
 export default function CategoriesPage() {
@@ -23,6 +24,9 @@ export default function CategoriesPage() {
 
   // Search input state
   const [searchTerm, setSearchTerm] = useState('')
+
+  // Confirmation state
+  const [deleteId, setDeleteId] = useState<string | null>(null)
 
   // Form states for creating
   const [newCategoryName, setNewCategoryName] = useState('')
@@ -99,23 +103,7 @@ export default function CategoriesPage() {
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Tem certeza que deseja excluir esta categoria? Lançamentos vinculados a ela também poderão ser afetados.')) {
-      return
-    }
-    setError('')
-    setSuccess('')
-    setLoading(true)
-    try {
-      await categoryService.delete(id)
-      setSuccess('Categoria removida com sucesso!')
-      fetchCategories()
-    } catch (err: any) {
-      console.error(err)
-      setError(err.response?.data?.message || err.response?.data?.error || 'Esta categoria não pôde ser excluída (pode conter transações associadas).')
-      setLoading(false)
-    }
-  }
+  // handleDelete is replaced by ConfirmModal inline action
 
   // Filter list by search term
   const filteredCategories = categories.filter(cat => 
@@ -282,7 +270,7 @@ export default function CategoriesPage() {
                                   <Edit2 className="w-3.5 h-3.5" />
                                 </button>
                                 <button
-                                  onClick={() => handleDelete(cat.id)}
+                                  onClick={() => setDeleteId(cat.id)}
                                   className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
                                   title="Remover"
                                 >
@@ -299,6 +287,22 @@ export default function CategoriesPage() {
               </div>
             )}
           </div>
+
+          <ConfirmModal
+            isOpen={!!deleteId}
+            title="Excluir Categoria"
+            message="Tem certeza que deseja excluir esta categoria? Lançamentos vinculados a ela também poderão ser afetados."
+            onConfirm={async () => {
+              if (deleteId) {
+                setError('')
+                setSuccess('')
+                await categoryService.delete(deleteId)
+                setSuccess('Categoria removida com sucesso!')
+                fetchCategories()
+              }
+            }}
+            onClose={() => setDeleteId(null)}
+          />
 
         </div>
 
