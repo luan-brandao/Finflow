@@ -13,6 +13,7 @@ import {
 import Logo from './Logo'
 import authService from '../services/authService'
 import userService from '../services/userService'
+import OnboardingTutorial from './OnboardingTutorial'
 import type { User } from '../types'
 
 interface LayoutProps {
@@ -22,6 +23,7 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [profile, setProfile] = useState<User | null>(null)
+  const [showOnboarding, setShowOnboarding] = useState(false)
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -34,13 +36,27 @@ export default function Layout({ children }: LayoutProps) {
 
     // Fetch own profile details
     userService.getMe()
-      .then(setProfile)
+      .then((data) => {
+        setProfile(data)
+        // Check if onboarding is completed for this user
+        const completed = localStorage.getItem(`finflow_onboarding_completed_${data.id}`)
+        if (completed !== 'true') {
+          setShowOnboarding(true)
+        }
+      })
       .catch(() => {
         // If JWT is expired or invalid, log out
         authService.logout()
         navigate('/login')
       })
   }, [navigate])
+
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false)
+    if (location.pathname === '/dashboard') {
+      window.location.reload()
+    }
+  }
 
   const handleLogout = () => {
     authService.logout()
@@ -180,6 +196,13 @@ export default function Layout({ children }: LayoutProps) {
       <main className="flex-1 p-6 md:p-10 overflow-y-auto max-w-7xl mx-auto w-full">
         {children}
       </main>
+
+      {showOnboarding && profile && (
+        <OnboardingTutorial 
+          userId={profile.id} 
+          onComplete={handleOnboardingComplete} 
+        />
+      )}
 
     </div>
   )
