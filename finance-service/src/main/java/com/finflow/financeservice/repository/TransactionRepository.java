@@ -185,4 +185,11 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
               AND t.type = com.finflow.financeservice.model.TransactionType.EXPENSE
             """)
     BigDecimal sumExpenseByCardId(@Param("cardId") UUID cardId);
+
+    @Query("SELECT t FROM Transaction t WHERE t.userId = :userId AND t.date BETWEEN :startDate AND :endDate ORDER BY t.date DESC, t.createdAt DESC")
+    List<Transaction> findByUserIdAndPeriod(
+            @Param("userId") UUID userId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
 }

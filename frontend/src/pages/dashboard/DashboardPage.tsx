@@ -15,7 +15,9 @@ import {
 import Layout from '../../components/Layout'
 import dashboardService from '../../services/dashboardService'
 import userService from '../../services/userService'
-import type { DashboardResponse, User, Card } from '../../types'
+import cardService from '../../services/cardService'
+import categoryService from '../../services/categoryService'
+import type { DashboardResponse, User, Card, Category } from '../../types'
 
 export default function DashboardPage() {
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null)
@@ -27,15 +29,30 @@ export default function DashboardPage() {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
 
+  // Dynamic filters
+  const [selectedCardId, setSelectedCardId] = useState('')
+  const [selectedCategoryId, setSelectedCategoryId] = useState('')
+  const [selectedType, setSelectedType] = useState('')
+
+  // Filter option lists
+  const [cards, setCards] = useState<Card[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+
   // Selected chart view
   const [activeChart, setActiveChart] = useState<'evolution' | 'comparison' | 'expenses_category' | 'distribution'>('evolution')
 
-  const fetchDashboardAndProfile = async (start?: string, end?: string) => {
+  const fetchDashboardAndProfile = async (
+    start?: string,
+    end?: string,
+    cardId?: string,
+    catId?: string,
+    type?: string
+  ) => {
     setLoading(true)
     setError('')
     try {
       const [dashData, profData] = await Promise.all([
-        dashboardService.getDashboard(start, end),
+        dashboardService.getDashboard(start, end, cardId, catId, type),
         profile ? Promise.resolve(profile) : userService.getMe()
       ])
       setDashboard(dashData)
@@ -51,24 +68,36 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchDashboardAndProfile()
+    // Fetch filter options once
+    cardService.findAll().then(setCards).catch(console.error)
+    categoryService.findAll().then(setCategories).catch(console.error)
   }, [])
 
   const handleFilter = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!startDate || !endDate) {
+    if ((startDate && !endDate) || (!startDate && endDate)) {
       setError('Ambas as datas (Início e Fim) devem ser especificadas.')
       return
     }
-    if (new Date(startDate) > new Date(endDate)) {
+    if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
       setError('A data de início não pode ser posterior à data final.')
       return
     }
-    fetchDashboardAndProfile(startDate, endDate)
+    fetchDashboardAndProfile(
+      startDate || undefined,
+      endDate || undefined,
+      selectedCardId || undefined,
+      selectedCategoryId || undefined,
+      selectedType || undefined
+    )
   }
 
   const handleClearFilter = () => {
     setStartDate('')
     setEndDate('')
+    setSelectedCardId('')
+    setSelectedCategoryId('')
+    setSelectedType('')
     fetchDashboardAndProfile()
   }
 
@@ -323,7 +352,7 @@ export default function DashboardPage() {
     )
   }
 
-  // 3. Expenses by Category Chart: Horizontal high-density progress lines
+  // 3. Expenses by Category Chart: Horizontal high-density progress lines (Controle de Gastos)
   const renderExpensesCategoryChart = () => {
     if (!dashboard || dashboard.expenseByCategory.length === 0) {
       return (
@@ -334,40 +363,49 @@ export default function DashboardPage() {
       )
     }
 
+    const monthlyIncome = dashboard.monthlyIncome || 0
+    const hasIncomeReference = monthlyIncome > 0
+    const categoryLimit = hasIncomeReference ? (monthlyIncome * 0.25) : 1500
+
     return (
       <div className="space-y-4">
-        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Composição dos Gastos</h4>
+        <div className="flex items-center justify-between">
+          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Controle e Limites por Categoria</h4>
+          <span className="text-[10px] text-slate-400 font-bold bg-slate-100 px-2 py-0.5 rounded">
+            Orçamento: {hasIncomeReference ? '25% da Renda' : 'Padrão R$ 1.500'}
+          </span>
+        </div>
         <div className="space-y-4 max-h-[200px] overflow-y-auto pr-1">
-          {dashboard.expenseByCategory.map((item, idx) => {
-            const percent = dashboard.totalExpense > 0 
-              ? Math.min(100, Math.round((item.total / dashboard.totalExpense) * 100)) 
-              : 0
-            
-            // Premium palette of categorical colors
-            const colors = [
-              'bg-indigo-600',
-              'bg-emerald-500',
-              'bg-amber-500',
-              'bg-pink-500',
-              'bg-cyan-500',
-              'bg-rose-500'
-            ]
-            const colorClass = colors[idx % colors.length]
+          {dashboard.expenseByCategory.map((item) => {
+            const budgetPercent = Math.min(100, Math.round((item.total / categoryLimit) * 100))
+            const isExceeded = item.total > categoryLimit
+            const isNearLimit = item.total > (categoryLimit * 0.75)
+
+            const colorClass = isExceeded 
+              ? 'bg-red-500' 
+              : isNearLimit 
+                ? 'bg-amber-500' 
+                : 'bg-indigo-600'
 
             return (
               <div key={item.categoryId} className="space-y-1">
                 <div className="flex items-center justify-between text-xs font-medium">
-                  <span className="text-slate-700 font-semibold">{item.categoryName}</span>
-                  <div className="flex items-center gap-2 font-mono tabular-nums text-slate-500 font-semibold">
-                    <span>{formatCurrency(item.total)}</span>
+                  <div className="flex items-center gap-1.5 truncate">
+                    <span className="text-slate-700 font-bold truncate">{item.categoryName}</span>
+                    {isExceeded && (
+                      <span className="text-[9px] bg-red-50 text-red-600 px-1 py-0.2 rounded font-extrabold animate-pulse">Estourou!</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 font-mono tabular-nums text-slate-500 font-semibold shrink-0">
+                    <span>{formatCurrency(item.total)} / {formatCurrency(categoryLimit)}</span>
                     <span className="text-slate-300">·</span>
-                    <span className="text-slate-800 font-bold">{percent}%</span>
+                    <span className={`font-bold ${isExceeded ? 'text-red-600' : isNearLimit ? 'text-amber-500' : 'text-slate-700'}`}>{budgetPercent}%</span>
                   </div>
                 </div>
-                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
                   <div 
                     className={`h-full ${colorClass} rounded-full transition-all duration-500`}
-                    style={{ width: `${percent}%` }}
+                    style={{ width: `${budgetPercent}%` }}
                   />
                 </div>
               </div>
@@ -378,7 +416,7 @@ export default function DashboardPage() {
     )
   }
 
-  // 4. Distribution Chart: Concentric layered circles (futuristic metric rings) for category totals
+  // 4. Distribution Chart: Premium SVG Donut/Rosca Chart for Category Totals
   const renderDistributionChart = () => {
     if (!dashboard || dashboard.expenseByCategory.length === 0) {
       return (
@@ -389,73 +427,92 @@ export default function DashboardPage() {
       )
     }
 
-    const items = dashboard.expenseByCategory.slice(0, 4) // Show top 4 categories as rings
+    const items = dashboard.expenseByCategory.slice(0, 6) // Show top 6 categories
+    const totalExpense = dashboard.totalExpense || 1
     const size = 200
     const center = size / 2
+    const r = 60
+    const strokeWidth = 24
+    const circumference = 2 * Math.PI * r // ~376.99
+
+    let accumulatedPercent = 0
+
+    // High fidelity color palette matching category styles
+    const colors = [
+      '#4F46E5', // Indigo
+      '#EF4444', // Red
+      '#F59E0B', // Amber
+      '#10B981', // Emerald
+      '#EC4899', // Pink
+      '#06B6D4'  // Cyan
+    ]
 
     return (
-      <div className="flex flex-col sm:flex-row items-center justify-center gap-8">
-        {/* Layered ring display */}
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-8 py-2">
+        {/* SVG Donut */}
         <div className="relative" style={{ width: size, height: size }}>
-          <svg className="w-full h-full transform -rotate-90">
+          <svg className="w-full h-full" viewBox={`0 0 ${size} ${size}`}>
+            {/* Background ring */}
+            <circle
+              cx={center}
+              cy={center}
+              r={r}
+              fill="none"
+              stroke="#F1F5F9"
+              strokeWidth={strokeWidth}
+            />
+
+            {/* Segment slices */}
             {items.map((item, idx) => {
-              const radius = 30 + idx * 16
-              const circumference = 2 * Math.PI * radius
-              const percent = dashboard.totalExpense > 0 
-                ? (item.total / dashboard.totalExpense)
-                : 0
+              const percent = item.total / totalExpense
               const strokeDashoffset = circumference - percent * circumference
-              
-              // Colors
-              const ringColors = ['#4F46E5', '#10B981', '#F59E0B', '#EC4899']
-              const color = ringColors[idx % ringColors.length]
+              const rotationAngle = -90 + (accumulatedPercent * 360)
+              accumulatedPercent += percent
+              const color = colors[idx % colors.length]
 
               return (
-                <g key={item.categoryId}>
-                  {/* Track ring */}
-                  <circle 
-                    cx={center} 
-                    cy={center} 
-                    r={radius} 
-                    fill="none" 
-                    stroke="#F1F5F9" 
-                    strokeWidth="5" 
-                  />
-                  {/* Progressive ring fill */}
-                  <circle 
-                    cx={center} 
-                    cy={center} 
-                    r={radius} 
-                    fill="none" 
-                    stroke={color} 
-                    strokeWidth="5" 
-                    strokeDasharray={circumference}
-                    strokeDashoffset={strokeDashoffset}
-                    strokeLinecap="round"
-                    className="transition-all duration-1000 ease-out"
-                  />
-                </g>
+                <circle
+                  key={item.categoryId}
+                  cx={center}
+                  cy={center}
+                  r={r}
+                  fill="none"
+                  stroke={color}
+                  strokeWidth={strokeWidth}
+                  strokeDasharray={circumference}
+                  strokeDashoffset={strokeDashoffset}
+                  transform={`rotate(${rotationAngle} ${center} ${center})`}
+                  strokeLinecap="round"
+                  className="transition-all duration-500 ease-out cursor-pointer hover:opacity-90"
+                >
+                  <title>{`${item.categoryName}: ${formatCurrency(item.total)} (${Math.round(percent * 100)}%)`}</title>
+                </circle>
               )
             })}
           </svg>
+          {/* Central absolute hole content */}
           <div className="absolute inset-0 flex flex-col items-center justify-center select-none pointer-events-none">
-            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Despesas</span>
-            <span className="text-sm font-bold text-slate-700 font-mono">{formatCurrency(dashboard.totalExpense)}</span>
+            <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400">Total</span>
+            <span className="text-sm font-extrabold text-slate-800 font-mono mt-0.5">{formatCurrency(dashboard.totalExpense)}</span>
           </div>
         </div>
 
-        {/* Small Concentric Legend */}
-        <div className="space-y-2 text-xs">
+        {/* Legend */}
+        <div className="space-y-2.5 text-xs max-w-[200px] w-full">
           {items.map((item, idx) => {
-            const ringColors = ['bg-indigo-600', 'bg-emerald-500', 'bg-amber-500', 'bg-pink-500']
-            const percent = dashboard.totalExpense > 0 
-              ? Math.round((item.total / dashboard.totalExpense) * 100)
-              : 0
+            const percent = Math.round((item.total / totalExpense) * 100)
+            const bgColors = ['bg-indigo-600', 'bg-red-500', 'bg-amber-500', 'bg-emerald-500', 'bg-pink-500', 'bg-cyan-500']
+            const colorClass = bgColors[idx % bgColors.length]
+
             return (
-              <div key={item.categoryId} className="flex items-center gap-2">
-                <span className={`w-2.5 h-2.5 rounded-full ${ringColors[idx % ringColors.length]}`} />
-                <span className="font-semibold text-slate-600">{item.categoryName}</span>
-                <span className="text-slate-400 font-mono font-bold">({percent}%)</span>
+              <div key={item.categoryId} className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 truncate">
+                  <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${colorClass}`} />
+                  <span className="font-bold text-slate-700 truncate">{item.categoryName}</span>
+                </div>
+                <div className="flex items-center gap-1 font-mono text-[11px] font-bold text-slate-400 shrink-0">
+                  <span>({percent}%)</span>
+                </div>
               </div>
             )
           })}
@@ -481,7 +538,13 @@ export default function DashboardPage() {
           </div>
 
           <button
-            onClick={() => fetchDashboardAndProfile(startDate || undefined, endDate || undefined)}
+            onClick={() => fetchDashboardAndProfile(
+              startDate || undefined,
+              endDate || undefined,
+              selectedCardId || undefined,
+              selectedCategoryId || undefined,
+              selectedType || undefined
+            )}
             disabled={loading}
             className="self-start px-4 py-2 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 flex items-center gap-2 transition-all disabled:opacity-50"
           >
@@ -500,7 +563,9 @@ export default function DashboardPage() {
 
         {/* Filters and Date Selector Bar */}
         <form onSubmit={handleFilter} className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row items-end gap-4 shadow-sm">
-          <div className="w-full md:w-auto flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="w-full flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            
+            {/* Start Date */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block">De (Início)</label>
               <div className="relative">
@@ -509,11 +574,12 @@ export default function DashboardPage() {
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded-xl outline-none transition-all font-semibold text-slate-700"
+                  className="w-full pl-10 pr-4 py-2.5 text-xs bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded-xl outline-none transition-all font-semibold text-slate-750"
                 />
               </div>
             </div>
             
+            {/* End Date */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block">Até (Fim)</label>
               <div className="relative">
@@ -522,26 +588,71 @@ export default function DashboardPage() {
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded-xl outline-none transition-all font-semibold text-slate-700"
+                  className="w-full pl-10 pr-4 py-2.5 text-xs bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded-xl outline-none transition-all font-semibold text-slate-750"
                 />
               </div>
             </div>
+
+            {/* Credit Card Filter */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block">Cartão</label>
+              <select
+                value={selectedCardId}
+                onChange={(e) => setSelectedCardId(e.target.value)}
+                className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded-xl outline-none transition-all font-semibold text-slate-600 cursor-pointer"
+              >
+                <option value="">Todos os Cartões</option>
+                {cards.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Category Filter */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block">Categoria</label>
+              <select
+                value={selectedCategoryId}
+                onChange={(e) => setSelectedCategoryId(e.target.value)}
+                className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded-xl outline-none transition-all font-semibold text-slate-600 cursor-pointer"
+              >
+                <option value="">Todas as Categorias</option>
+                {categories.map(cat => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Transaction Type Filter */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block">Tipo</label>
+              <select
+                value={selectedType}
+                onChange={(e) => setSelectedType(e.target.value)}
+                className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded-xl outline-none transition-all font-semibold text-slate-600 cursor-pointer"
+              >
+                <option value="">Todos os Tipos</option>
+                <option value="INCOME">Receitas (Entradas)</option>
+                <option value="EXPENSE">Despesas (Saídas)</option>
+              </select>
+            </div>
+
           </div>
 
           <div className="flex gap-2.5 w-full md:w-auto shrink-0">
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 md:flex-none px-6 py-2.5 bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white font-bold rounded-xl text-xs transition-all duration-200"
+              className="flex-1 md:flex-none px-6 py-2.5 bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white font-bold rounded-xl text-xs transition-all duration-200 shrink-0"
             >
-              Aplicar Filtro
+              Filtrar
             </button>
-            {(startDate || endDate) && (
+            {(startDate || endDate || selectedCardId || selectedCategoryId || selectedType) && (
               <button
                 type="button"
                 onClick={handleClearFilter}
                 disabled={loading}
-                className="flex-1 md:flex-none px-6 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl text-xs font-bold transition-all duration-200"
+                className="flex-1 md:flex-none px-6 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl text-xs font-bold transition-all duration-200 shrink-0"
               >
                 Limpar
               </button>

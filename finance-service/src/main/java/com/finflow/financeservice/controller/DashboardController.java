@@ -1,7 +1,8 @@
 package com.finflow.financeservice.controller;
-
+ 
 import com.finflow.financeservice.dto.DashboardResponseDTO;
 import com.finflow.financeservice.service.DashboardService;
+import com.finflow.financeservice.model.TransactionType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -9,8 +10,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
+ 
 import java.time.LocalDate;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/dashboard")
@@ -27,7 +29,16 @@ public class DashboardController {
 
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-            LocalDate endDate
+            LocalDate endDate,
+
+            @RequestParam(required = false)
+            UUID cardId,
+
+            @RequestParam(required = false)
+            UUID categoryId,
+
+            @RequestParam(required = false)
+            TransactionType type
     ) {
 
         if (startDate == null && endDate == null) {
@@ -52,7 +63,10 @@ public class DashboardController {
         DashboardResponseDTO dashboard =
                 dashboardService.getDashboard(
                         startDate,
-                        endDate
+                        endDate,
+                        cardId,
+                        categoryId,
+                        type
                 );
 
         return ResponseEntity.ok(dashboard);

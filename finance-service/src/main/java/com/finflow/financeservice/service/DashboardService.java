@@ -14,6 +14,8 @@ import com.finflow.financeservice.projection.RecentTransactionProjection;
 import com.finflow.financeservice.projection.TopExpenseProjection;
 import com.finflow.financeservice.repository.TransactionRepository;
 import com.finflow.financeservice.repository.MonthlyIncomeRepository;
+import com.finflow.financeservice.repository.CategoryRepository;
+import com.finflow.financeservice.model.Transaction;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.Authentication;
@@ -32,6 +34,7 @@ public class DashboardService {
 
     private final TransactionRepository transactionRepository;
     private final MonthlyIncomeRepository monthlyIncomeRepository;
+    private final CategoryRepository categoryRepository;
     private final CardService cardService;
 
     @Transactional(readOnly = true)
@@ -39,91 +42,152 @@ public class DashboardService {
             LocalDate startDate,
             LocalDate endDate
     ) {
+        return getDashboard(startDate, endDate, null, null, null);
+    }
 
+    @Transactional(readOnly = true)
+    public DashboardResponseDTO getDashboard(
+            LocalDate startDate,
+            LocalDate endDate,
+            UUID cardId,
+            UUID categoryId,
+            TransactionType type
+    ) {
         UUID userId = getAuthenticatedUserId();
 
-        BigDecimal totalIncome =
-                transactionRepository.sumIncomeByUserIdAndPeriod(
-                        userId,
-                        startDate,
-                        endDate
-                );
+        // Fetch all transactions for this user and period
+        List<Transaction> transactions = transactionRepository.findByUserIdAndPeriod(userId, startDate, endDate);
 
-        BigDecimal totalExpense =
-                transactionRepository.sumExpenseByUserIdAndPeriod(
-                        userId,
-                        startDate,
-                        endDate
-                );
+        // Fetch all categories (default + custom) to map names
+        List<com.finflow.financeservice.model.Category> categories = categoryRepository.findByUserIdIsNullOrUserId(userId);
+        java.util.Map<UUID, String> categoryNameMap = categories.stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        com.finflow.financeservice.model.Category::getId,
+                        com.finflow.financeservice.model.Category::getName,
+                        (a, b) -> a
+                ));
 
-        long transactionCount =
-                transactionRepository.countByUserIdAndPeriod(
-                        userId,
-                        startDate,
-                        endDate
-                );
+        // Filter transactions based on the selected dynamic filters
+        java.util.stream.Stream<Transaction> stream = transactions.stream();
+        if (cardId != null) {
+            stream = stream.filter(t -> cardId.equals(t.getCardId()));
+        }
+        if (categoryId != null) {
+            stream = stream.filter(t -> categoryId.equals(t.getCategoryId()));
+        }
+        if (type != null) {
+            stream = stream.filter(t -> type == t.getType());
+        }
+        List<Transaction> filtered = stream.toList();
 
-        List<CategorySummaryDTO> incomeByCategory =
-                transactionRepository
-                        .sumIncomeByCategory(
-                                userId,
-                                startDate,
-                                endDate
-                        )
-                        .stream()
-                        .map(this::toCategorySummaryDTO)
-                        .toList();
+        // Calculate aggregate sums and counts
+        BigDecimal totalIncome = filtered.stream()
+                .filter(t -> t.getType() == TransactionType.INCOME)
+                .map(Transaction::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        List<CategorySummaryDTO> expenseByCategory =
-                transactionRepository
-                        .sumExpenseByCategory(
-                                userId,
-                                startDate,
-                                endDate
-                        )
-                        .stream()
-                        .map(this::toCategorySummaryDTO)
-                        .toList();
+        BigDecimal totalExpense = filtered.stream()
+                .filter(t -> t.getType() == TransactionType.EXPENSE)
+                .map(Transaction::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        List<MonthlySummaryDTO> monthlySummary =
-                transactionRepository
-                        .findMonthlySummary(
-                                userId,
-                                startDate,
-                                endDate
-                        )
-                        .stream()
-                        .map(this::toMonthlySummaryDTO)
-                        .toList();
+        long transactionCount = filtered.size();
+        BigDecimal balance = totalIncome.subtract(totalExpense);
 
-        List<TopExpenseDTO> topExpenses =
-                transactionRepository
-                        .findTopExpenses(
-                                userId,
-                                startDate,
-                                endDate,
-                                PageRequest.of(0, 5)
-                        )
-                        .stream()
-                        .map(this::toTopExpenseDTO)
-                        .toList();
+        // Group income by category
+        java.util.Map<UUID, BigDecimal> incomeByCatMap = filtered.stream()
+                .filter(t -> t.getType() == TransactionType.INCOME)
+                .collect(java.util.stream.Collectors.groupingBy(
+                        Transaction::getCategoryId,
+                        java.util.stream.Collectors.reducing(BigDecimal.ZERO, Transaction::getAmount, BigDecimal::add)
+                ));
+        List<CategorySummaryDTO> incomeByCategory = incomeByCatMap.entrySet().stream()
+                .map(e -> new CategorySummaryDTO(
+                        e.getKey(),
+                        categoryNameMap.getOrDefault(e.getKey(), "Outros"),
+                        e.getValue()
+                ))
+                .sorted((a, b) -> b.total().compareTo(a.total()))
+                .toList();
 
-        List<RecentTransactionDTO> recentTransactions =
-                transactionRepository
-                        .findRecentTransactions(
-                                userId,
-                                startDate,
-                                endDate,
-                                PageRequest.of(0, 10)
-                        )
-                        .stream()
-                        .map(this::toRecentTransactionDTO)
-                        .toList();
+        // Group expense by category
+        java.util.Map<UUID, BigDecimal> expenseByCatMap = filtered.stream()
+                .filter(t -> t.getType() == TransactionType.EXPENSE)
+                .collect(java.util.stream.Collectors.groupingBy(
+                        Transaction::getCategoryId,
+                        java.util.stream.Collectors.reducing(BigDecimal.ZERO, Transaction::getAmount, BigDecimal::add)
+                ));
+        List<CategorySummaryDTO> expenseByCategory = expenseByCatMap.entrySet().stream()
+                .map(e -> new CategorySummaryDTO(
+                        e.getKey(),
+                        categoryNameMap.getOrDefault(e.getKey(), "Outros"),
+                        e.getValue()
+                ))
+                .sorted((a, b) -> b.total().compareTo(a.total()))
+                .toList();
 
-        BigDecimal balance =
-                totalIncome.subtract(totalExpense);
+        // Group by year and month for monthly summary
+        record YearMonthKey(int year, int month) {}
+        java.util.Map<YearMonthKey, BigDecimal> monthlyIncomeMap = filtered.stream()
+                .filter(t -> t.getType() == TransactionType.INCOME)
+                .collect(java.util.stream.Collectors.groupingBy(
+                        t -> new YearMonthKey(t.getDate().getYear(), t.getDate().getMonthValue()),
+                        java.util.stream.Collectors.reducing(BigDecimal.ZERO, Transaction::getAmount, BigDecimal::add)
+                ));
+        java.util.Map<YearMonthKey, BigDecimal> monthlyExpenseMap = filtered.stream()
+                .filter(t -> t.getType() == TransactionType.EXPENSE)
+                .collect(java.util.stream.Collectors.groupingBy(
+                        t -> new YearMonthKey(t.getDate().getYear(), t.getDate().getMonthValue()),
+                        java.util.stream.Collectors.reducing(BigDecimal.ZERO, Transaction::getAmount, BigDecimal::add)
+                ));
 
-        // --- Extensões do Dashboard (Renda Mensal e Cartões) ---
+        java.util.Set<YearMonthKey> allKeys = new java.util.HashSet<>();
+        allKeys.addAll(monthlyIncomeMap.keySet());
+        allKeys.addAll(monthlyExpenseMap.keySet());
+
+        List<MonthlySummaryDTO> monthlySummary = allKeys.stream()
+                .map(k -> new MonthlySummaryDTO(
+                        k.year,
+                        k.month,
+                        monthlyIncomeMap.getOrDefault(k, BigDecimal.ZERO),
+                        monthlyExpenseMap.getOrDefault(k, BigDecimal.ZERO)
+                ))
+                .sorted((a, b) -> {
+                    if (a.year() != b.year()) return a.year() - b.year();
+                    return a.month() - b.month();
+                })
+                .toList();
+
+        // Get top 5 expenses
+        List<TopExpenseDTO> topExpenses = filtered.stream()
+                .filter(t -> t.getType() == TransactionType.EXPENSE)
+                .sorted((a, b) -> b.getAmount().compareTo(a.getAmount()))
+                .limit(5)
+                .map(t -> new TopExpenseDTO(
+                        t.getId(),
+                        t.getDescription(),
+                        t.getAmount(),
+                        t.getCategoryId(),
+                        categoryNameMap.getOrDefault(t.getCategoryId(), "Outros"),
+                        t.getDate()
+                ))
+                .toList();
+
+        // Get 10 recent transactions
+        List<RecentTransactionDTO> recentTransactions = filtered.stream()
+                .limit(10)
+                .map(t -> new RecentTransactionDTO(
+                        t.getId(),
+                        t.getDescription(),
+                        t.getAmount(),
+                        t.getType(),
+                        t.getCategoryId(),
+                        categoryNameMap.getOrDefault(t.getCategoryId(), "Outros"),
+                        t.getDate()
+                ))
+                .toList();
+
+        // Monthly reference income
         LocalDate referenceDate = endDate != null ? endDate : LocalDate.now();
         int year = referenceDate.getYear();
         int month = referenceDate.getMonthValue();
