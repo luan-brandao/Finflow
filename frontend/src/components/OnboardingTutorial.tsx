@@ -182,9 +182,9 @@ export default function OnboardingTutorial({ userId, onComplete }: OnboardingTut
     let top = rect.bottom + 16
     let left = Math.max(16, Math.min(window.innerWidth - popoverWidth - 16, rect.left + (rect.width - popoverWidth) / 2))
 
-    if (spaceBelow < 220 && spaceAbove > spaceBelow) {
+    if (spaceBelow < 250 && spaceAbove > spaceBelow) {
       // Position above the highlighted rect
-      top = rect.top - 240
+      top = rect.top - 280
     }
 
     // Special case for sidebar items to position to the right
@@ -199,7 +199,7 @@ export default function OnboardingTutorial({ userId, onComplete }: OnboardingTut
 
     return {
       position: 'fixed' as const,
-      top: Math.max(16, Math.min(window.innerHeight - 260, top)),
+      top: Math.max(16, Math.min(window.innerHeight - 340, top)),
       left,
       zIndex: 50,
       width: `${popoverWidth}px`
@@ -241,13 +241,13 @@ export default function OnboardingTutorial({ userId, onComplete }: OnboardingTut
       {/* Floating Guided Tour Card */}
       <div 
         style={getPopoverStyle()} 
-        className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-6 relative overflow-hidden flex flex-col justify-between transition-all duration-300 animate-scale-in"
+        className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-5 relative overflow-hidden flex flex-col justify-between transition-all duration-300 animate-scale-in max-h-[calc(100vh-32px)]"
       >
         {/* Floating background gradient light */}
         <div className="absolute -top-12 -right-12 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
 
         {/* Top Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
           <div className="flex items-center gap-2 text-indigo-600 font-bold text-xs tracking-wider uppercase">
             <Sparkles className="w-4 h-4 text-indigo-500 animate-pulse" />
             <span>Tour Guiado Finflow</span>
@@ -263,8 +263,8 @@ export default function OnboardingTutorial({ userId, onComplete }: OnboardingTut
           )}
         </div>
 
-        {/* Step Content */}
-        <div className="space-y-4">
+        {/* Step Content with scroll support */}
+        <div className="space-y-4 overflow-y-auto pr-1 select-text scrollbar-thin max-h-[240px] sm:max-h-[320px] flex-1 py-1">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center shrink-0">
               <activeStep.icon className="w-5 h-5" />
@@ -323,7 +323,7 @@ export default function OnboardingTutorial({ userId, onComplete }: OnboardingTut
         </div>
 
         {/* Footer controls */}
-        <div className="flex items-center justify-between border-t border-slate-100 pt-4">
+        <div className="flex items-center justify-between border-t border-slate-100 pt-4 shrink-0">
           {/* Step dots */}
           <div className="flex items-center gap-1">
             {[1, 2, 3, 4, 5].map((i) => (

@@ -2,9 +2,10 @@ interface LogoProps {
   className?: string
   showText?: boolean
   textSize?: string
+  textColor?: string
 }
 
-export default function Logo({ className = "w-10 h-10", showText = true, textSize = "text-xl" }: LogoProps) {
+export default function Logo({ className = "w-10 h-10", showText = true, textSize = "text-xl", textColor = "text-slate-900" }: LogoProps) {
   return (
     <div className="flex items-center gap-2.5 select-none">
       <div className={`shrink-0 ${className}`}>
@@ -41,7 +42,7 @@ export default function Logo({ className = "w-10 h-10", showText = true, textSiz
         </svg>
       </div>
       {showText && (
-        <span className={`font-bold tracking-tight text-slate-900 ${textSize}`}>
+        <span className={`font-bold tracking-tight ${textColor} ${textSize}`}>
           Finflow
         </span>
       )}

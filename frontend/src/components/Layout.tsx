@@ -75,11 +75,11 @@ export default function Layout({ children }: LayoutProps) {
     <div className="min-h-screen bg-slate-50/50 text-slate-900 flex flex-col md:flex-row font-sans">
       
       {/* Sidebar - Desktop */}
-      <aside className="hidden md:flex flex-col w-64 bg-white border-r border-slate-200/80 shrink-0 sticky top-0 h-screen">
+      <aside className="hidden md:flex flex-col w-64 bg-[#0F172A] border-r border-slate-800 shrink-0 sticky top-0 h-screen text-slate-300">
         {/* Brand Area */}
-        <div className="p-6 border-b border-slate-100 flex items-center">
+        <div className="p-6 border-b border-slate-850 flex items-center">
           <Link to="/dashboard">
-            <Logo className="w-8 h-8" showText={true} textSize="text-lg" />
+            <Logo className="w-8 h-8" showText={true} textSize="text-lg" textColor="text-white" />
           </Link>
         </div>
 
@@ -96,11 +96,11 @@ export default function Layout({ children }: LayoutProps) {
                 id={tourId}
                 className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                   isActive
-                    ? 'bg-indigo-50 text-indigo-600 font-semibold'
-                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                    ? 'bg-indigo-600 text-white font-semibold shadow-md shadow-indigo-600/10'
+                    : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'
                 }`}
               >
-                <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-indigo-600' : 'text-slate-400'}`} />
+                <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`} />
                 <span>{item.name}</span>
               </Link>
             )
@@ -108,23 +108,23 @@ export default function Layout({ children }: LayoutProps) {
         </nav>
 
         {/* User profile & Logout */}
-        <div className="p-4 border-t border-slate-100 flex flex-col gap-2">
+        <div className="p-4 border-t border-slate-800 flex flex-col gap-2">
           {profile && (
-            <div className="flex items-center gap-3 px-3 py-2 bg-slate-50 rounded-lg">
-              <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0 uppercase select-none">
+            <div className="flex items-center gap-3 px-3 py-2 bg-slate-800/40 border border-slate-800/50 rounded-lg">
+              <div className="w-8 h-8 rounded-full bg-indigo-500 text-white flex items-center justify-center font-bold text-xs shrink-0 uppercase select-none">
                 {profile.name.charAt(0)}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold text-slate-800 truncate leading-none">{profile.name}</p>
-                <p className="text-[10px] text-slate-400 truncate mt-1 leading-none">{profile.email}</p>
+                <p className="text-xs font-semibold text-slate-200 truncate leading-none">{profile.name}</p>
+                <p className="text-[10px] text-slate-500 truncate mt-1 leading-none">{profile.email}</p>
               </div>
             </div>
           )}
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-200 w-full text-left font-sans"
+            className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-all duration-200 w-full text-left font-sans"
           >
-            <LogOut className="w-4 h-4 shrink-0 text-red-500" />
+            <LogOut className="w-4 h-4 shrink-0 text-red-400" />
             <span>Sair</span>
           </button>
         </div>
