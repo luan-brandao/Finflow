@@ -10,7 +10,8 @@ import {
   X,
   CreditCard,
   Sun,
-  Moon
+  Moon,
+  Shield
 } from 'lucide-react'
 import Logo from './Logo'
 import authService from '../services/authService'
@@ -99,6 +100,10 @@ export default function Layout({ children }: LayoutProps) {
     { name: 'Cartões', path: '/cards', icon: CreditCard },
     { name: 'Perfil', path: '/profile', icon: UserIcon },
   ]
+
+  if (profile?.role === 'ADMIN') {
+    menuItems.push({ name: 'Admin', path: '/admin/users', icon: Shield })
+  }
 
   return (
     <div className="min-h-screen bg-slate-50/50 dark:bg-[#0B1220] text-slate-900 dark:text-slate-100 flex flex-col md:flex-row font-sans">

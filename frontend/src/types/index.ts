@@ -130,3 +130,14 @@ export interface UserUpdateData {
   email: string;
   password?: string;
 }
+
+export interface PaginatedUsers {
+  content: User[];
+  totalPages: number;
+  totalElements: number;
+  size: number;
+  number: number;
+  last: boolean;
+  first: boolean;
+  empty: boolean;
+}

@@ -7,6 +7,7 @@ import TransactionsPage from '../pages/transactions/TransactionsPage'
 import CategoriesPage from '../pages/categories/CategoriesPage'
 import CardsPage from '../pages/cards/CardsPage'
 import ProfilePage from '../pages/profile/ProfilePage'
+import AdminUsersPage from '../pages/AdminUsersPage'
 
 function AppRoutes() {
   return (
@@ -19,6 +20,7 @@ function AppRoutes() {
       <Route path="/categories" element={<CategoriesPage />} />
       <Route path="/cards" element={<CardsPage />} />
       <Route path="/profile" element={<ProfilePage />} />
+      <Route path="/admin/users" element={<AdminUsersPage />} />
     </Routes>
   )
 }
