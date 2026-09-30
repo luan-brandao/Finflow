@@ -89,16 +89,16 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-between p-6 antialiased font-sans">
+    <div className="min-h-screen bg-[#0B1220] flex flex-col justify-between p-6 antialiased font-sans text-slate-300">
 
       {/* Header */}
-      <header className="max-w-6xl w-full mx-auto flex items-center justify-between pb-4">
+      <header className="max-w-6xl w-full mx-auto flex items-center justify-between pb-4 border-b border-slate-900">
         <Link to="/">
-          <Logo className="w-8 h-8" showText={true} textSize="text-lg" />
+          <Logo className="w-8 h-8" showText={true} textSize="text-lg" textColor="text-white" />
         </Link>
         <Link 
           to="/" 
-          className="text-xs font-bold text-slate-500 hover:text-slate-900 flex items-center gap-1.5 transition-colors"
+          className="text-xs font-bold text-slate-400 hover:text-white flex items-center gap-1.5 transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Voltar ao início</span>
@@ -107,14 +107,14 @@ export default function LoginPage() {
 
       {/* Centered Login Workspace Card */}
       <div className="flex-1 flex items-center justify-center py-10">
-        <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-8 shadow-sm">
+        <div className="w-full max-w-md bg-[#111827] border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-xl">
           
           {/* Logo & Headline */}
           <div className="text-center space-y-3 mb-8">
             <div className="flex justify-center select-none">
               <Logo className="w-12 h-12" showText={false} />
             </div>
-            <h2 className="text-2xl font-extrabold tracking-tight text-slate-900">
+            <h2 className="text-2xl font-extrabold tracking-tight text-white">
               Acesse sua conta
             </h2>
             <p className="text-slate-400 text-sm max-w-xs mx-auto leading-relaxed">
@@ -124,11 +124,11 @@ export default function LoginPage() {
 
           {/* General Error Alert */}
           {generalError && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200/60 rounded-xl flex gap-3 text-red-900 animate-fade-in" role="alert">
-              <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex gap-3 text-red-200 animate-fade-in" role="alert">
+              <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
               <div className="text-xs font-semibold">
-                <p className="font-extrabold text-red-950">Erro ao autenticar</p>
-                <p className="text-red-700 mt-0.5 leading-relaxed">{generalError}</p>
+                <p className="font-extrabold text-red-100">Erro ao autenticar</p>
+                <p className="text-red-300 mt-0.5 leading-relaxed">{generalError}</p>
               </div>
             </div>
           )}
@@ -143,14 +143,14 @@ export default function LoginPage() {
                   E-mail
                 </label>
                 {emailError && (
-                  <span className="text-[11px] font-semibold text-red-600 animate-fade-in">
+                  <span className="text-[11px] font-semibold text-red-500 animate-fade-in">
                     {emailError}
                   </span>
                 )}
               </div>
               
               <div className="relative">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-500">
                   <Mail className="w-4 h-4" />
                 </span>
                 <input
@@ -160,10 +160,10 @@ export default function LoginPage() {
                   onChange={handleEmailChange}
                   disabled={isLoading}
                   placeholder="Seu e-mail cadastrado"
-                  className={`w-full text-sm pl-10 pr-4 py-2.5 bg-slate-50 border rounded-xl outline-none transition-all duration-200 ${
+                  className={`w-full text-sm pl-10 pr-4 py-2.5 bg-[#1F2937] border rounded-xl outline-none transition-all duration-200 text-white placeholder-slate-500 ${
                     emailError 
-                      ? 'border-red-300 bg-red-50/10 focus:border-red-500 focus:ring-4 focus:ring-red-100' 
-                      : 'border-slate-200 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-100/50 focus:bg-white font-semibold text-slate-700'
+                      ? 'border-red-500 focus:border-red-400 focus:ring-4 focus:ring-red-950/40' 
+                      : 'border-slate-800 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-950/40 font-semibold'
                   }`}
                   aria-invalid={emailError ? 'true' : 'false'}
                 />
@@ -177,7 +177,7 @@ export default function LoginPage() {
                   Senha
                 </label>
                 {passwordError ? (
-                  <span className="text-[11px] font-semibold text-red-600 animate-fade-in">
+                  <span className="text-[11px] font-semibold text-red-500 animate-fade-in">
                     {passwordError}
                   </span>
                 ) : (
@@ -187,7 +187,7 @@ export default function LoginPage() {
                       e.preventDefault()
                       setGeneralError('A recuperação de senha não está ativa neste momento.')
                     }}
-                    className="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors"
+                    className="text-xs font-bold text-slate-400 hover:text-slate-200 transition-colors"
                   >
                     Esqueceu?
                   </a>
@@ -195,7 +195,7 @@ export default function LoginPage() {
               </div>
               
               <div className="relative">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-500">
                   <Lock className="w-4 h-4" />
                 </span>
                 <input
@@ -205,10 +205,10 @@ export default function LoginPage() {
                   onChange={handlePasswordChange}
                   disabled={isLoading}
                   placeholder="Sua senha de acesso"
-                  className={`w-full text-sm pl-10 pr-10 py-2.5 bg-slate-50 border rounded-xl outline-none transition-all duration-200 ${
+                  className={`w-full text-sm pl-10 pr-10 py-2.5 bg-[#1F2937] border rounded-xl outline-none transition-all duration-200 text-white placeholder-slate-500 ${
                     passwordError 
-                      ? 'border-red-300 bg-red-50/10 focus:border-red-500 focus:ring-4 focus:ring-red-100' 
-                      : 'border-slate-200 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-100/50 focus:bg-white font-semibold text-slate-700'
+                      ? 'border-red-500 focus:border-red-400 focus:ring-4 focus:ring-red-950/40' 
+                      : 'border-slate-800 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-950/40 font-semibold'
                   }`}
                   aria-invalid={passwordError ? 'true' : 'false'}
                 />
@@ -216,7 +216,7 @@ export default function LoginPage() {
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   disabled={isLoading}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 transition-colors"
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-500 hover:text-slate-300 transition-colors"
                   aria-label={showPassword ? 'Esconder senha' : 'Mostrar senha'}
                 >
                   {showPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
@@ -228,7 +228,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white font-bold rounded-xl text-xs transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 select-none shadow-sm hover:shadow-md"
+              className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold rounded-xl text-xs transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 select-none shadow-md shadow-indigo-600/10"
             >
               {isLoading ? (
                 <>
@@ -243,12 +243,12 @@ export default function LoginPage() {
           </form>
 
           {/* Create Account Link */}
-          <div className="pt-6 border-t border-slate-100 mt-6 text-center select-none">
-            <p className="text-xs text-slate-500 font-medium">
+          <div className="pt-6 border-t border-slate-800 mt-6 text-center select-none">
+            <p className="text-xs text-slate-400 font-medium">
               Não tem uma conta?{' '}
               <Link 
                 to="/register" 
-                className="text-indigo-600 hover:text-indigo-700 font-bold transition-colors ml-0.5"
+                className="text-indigo-400 hover:text-indigo-300 font-bold transition-colors ml-0.5"
               >
                 Criar conta
               </Link>
@@ -259,11 +259,11 @@ export default function LoginPage() {
       </div>
 
       {/* Footer */}
-      <footer className="max-w-6xl w-full mx-auto text-center border-t border-slate-100 pt-4 flex flex-col sm:flex-row justify-between items-center gap-2 text-[11px] text-slate-400 font-mono tracking-wide uppercase select-none">
+      <footer className="max-w-6xl w-full mx-auto text-center border-t border-slate-900 pt-4 flex flex-col sm:flex-row justify-between items-center gap-2 text-[11px] text-slate-500 font-mono tracking-wide uppercase select-none">
         <span>&copy; {new Date().getFullYear()} Finflow. Painel pessoal de investimentos.</span>
         <div className="flex gap-4">
-          <a href="#privacy" className="hover:text-slate-600 transition-colors">Privacidade</a>
-          <a href="#terms" className="hover:text-slate-600 transition-colors">Termos</a>
+          <a href="#privacy" className="hover:text-slate-400 transition-colors">Privacidade</a>
+          <a href="#terms" className="hover:text-slate-400 transition-colors">Termos</a>
         </div>
       </footer>
 

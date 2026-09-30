@@ -131,13 +131,13 @@ export default function Layout({ children }: LayoutProps) {
       </aside>
 
       {/* Mobile Top Navbar */}
-      <header className="md:hidden bg-white border-b border-slate-200/80 px-4 py-4 flex items-center justify-between sticky top-0 z-50">
+      <header className="md:hidden bg-[#0F172A] border-b border-slate-800 px-4 py-4 flex items-center justify-between sticky top-0 z-50">
         <Link to="/dashboard">
-          <Logo className="w-7 h-7" showText={true} textSize="text-md" />
+          <Logo className="w-7 h-7" showText={true} textSize="text-md" textColor="text-white" />
         </Link>
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg"
+          className="p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white rounded-lg transition-colors"
         >
           {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
@@ -145,7 +145,7 @@ export default function Layout({ children }: LayoutProps) {
 
       {/* Mobile Menu Panel */}
       {isMobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 z-40 bg-white flex flex-col pt-20">
+        <div className="md:hidden fixed inset-0 z-40 bg-[#0F172A] flex flex-col pt-20 text-slate-300">
           <nav className="flex-1 px-6 py-6 space-y-4">
             {menuItems.map((item) => {
               const isActive = location.pathname === item.path
@@ -157,26 +157,26 @@ export default function Layout({ children }: LayoutProps) {
                   onClick={() => setIsMobileMenuOpen(false)}
                   className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-base font-medium transition-all duration-200 ${
                     isActive
-                      ? 'bg-indigo-50 text-indigo-600 font-bold'
-                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                      ? 'bg-indigo-600 text-white font-bold shadow-md shadow-indigo-600/10'
+                      : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'
                   }`}
                 >
-                  <Icon className={`w-5 h-5 ${isActive ? 'text-indigo-600' : 'text-slate-400'}`} />
+                  <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-slate-400'}`} />
                   <span>{item.name}</span>
                 </Link>
               )
             })}
           </nav>
 
-          <div className="p-6 border-t border-slate-100 flex flex-col gap-4 bg-slate-50">
+          <div className="p-6 border-t border-slate-800 flex flex-col gap-4 bg-slate-900/60">
             {profile && (
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shrink-0 uppercase select-none">
+                <div className="w-10 h-10 rounded-full bg-indigo-500 text-white flex items-center justify-center font-bold text-sm shrink-0 uppercase select-none">
                   {profile.name.charAt(0)}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-slate-800 truncate">{profile.name}</p>
-                  <p className="text-xs text-slate-400 truncate mt-0.5">{profile.email}</p>
+                  <p className="text-sm font-semibold text-slate-200 truncate leading-none">{profile.name}</p>
+                  <p className="text-xs text-slate-500 truncate mt-1.5 leading-none">{profile.email}</p>
                 </div>
               </div>
             )}
@@ -185,9 +185,9 @@ export default function Layout({ children }: LayoutProps) {
                 setIsMobileMenuOpen(false)
                 handleLogout()
               }}
-              className="flex items-center justify-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-red-600 bg-red-50 hover:bg-red-100 active:bg-red-200 transition-all duration-200 w-full"
+              className="flex items-center justify-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-400 bg-red-500/10 hover:bg-red-500/20 hover:text-red-400 transition-all duration-200 w-full"
             >
-              <LogOut className="w-4 h-4 text-red-500" />
+              <LogOut className="w-4 h-4 text-red-400" />
               <span>Sair da conta</span>
             </button>
           </div>
