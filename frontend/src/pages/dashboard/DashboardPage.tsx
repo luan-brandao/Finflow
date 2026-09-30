@@ -10,7 +10,11 @@ import {
   RefreshCw,
   FolderMinus,
   Receipt,
-  CreditCard
+  CreditCard,
+  Filter,
+  ChevronDown,
+  ChevronUp,
+  X
 } from 'lucide-react'
 import Layout from '../../components/Layout'
 import dashboardService from '../../services/dashboardService'
@@ -38,8 +42,8 @@ export default function DashboardPage() {
   const [cards, setCards] = useState<Card[]>([])
   const [categories, setCategories] = useState<Category[]>([])
 
-  // Selected chart view
-  const [activeChart, setActiveChart] = useState<'evolution' | 'comparison' | 'expenses_category' | 'distribution'>('evolution')
+  // Filters collapsibility
+  const [isFilterOpen, setIsFilterOpen] = useState(false)
 
   const fetchDashboardAndProfile = async (
     start?: string,
@@ -363,49 +367,36 @@ export default function DashboardPage() {
       )
     }
 
-    const monthlyIncome = dashboard.monthlyIncome || 0
-    const hasIncomeReference = monthlyIncome > 0
-    const categoryLimit = hasIncomeReference ? (monthlyIncome * 0.25) : 1500
+    const totalExpense = dashboard.totalExpense || 1
 
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Controle e Limites por Categoria</h4>
-          <span className="text-[10px] text-slate-400 font-bold bg-slate-100 px-2 py-0.5 rounded">
-            Orçamento: {hasIncomeReference ? '25% da Renda' : 'Padrão R$ 1.500'}
+          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Participação no Total de Gastos</h4>
+          <span className="text-[10px] text-slate-400 font-bold bg-slate-100 px-2 py-0.5 rounded font-mono">
+            Total: {formatCurrency(totalExpense)}
           </span>
         </div>
-        <div className="space-y-4 max-h-[200px] overflow-y-auto pr-1">
+        <div className="space-y-4 max-h-[250px] overflow-y-auto pr-1">
           {dashboard.expenseByCategory.map((item) => {
-            const budgetPercent = Math.min(100, Math.round((item.total / categoryLimit) * 100))
-            const isExceeded = item.total > categoryLimit
-            const isNearLimit = item.total > (categoryLimit * 0.75)
-
-            const colorClass = isExceeded 
-              ? 'bg-red-500' 
-              : isNearLimit 
-                ? 'bg-amber-500' 
-                : 'bg-indigo-600'
+            const percent = Math.min(100, Math.round((item.total / totalExpense) * 100))
 
             return (
               <div key={item.categoryId} className="space-y-1">
                 <div className="flex items-center justify-between text-xs font-medium">
                   <div className="flex items-center gap-1.5 truncate">
                     <span className="text-slate-700 font-bold truncate">{item.categoryName}</span>
-                    {isExceeded && (
-                      <span className="text-[9px] bg-red-50 text-red-600 px-1 py-0.2 rounded font-extrabold animate-pulse">Estourou!</span>
-                    )}
                   </div>
                   <div className="flex items-center gap-2 font-mono tabular-nums text-slate-500 font-semibold shrink-0">
-                    <span>{formatCurrency(item.total)} / {formatCurrency(categoryLimit)}</span>
+                    <span>{formatCurrency(item.total)}</span>
                     <span className="text-slate-300">·</span>
-                    <span className={`font-bold ${isExceeded ? 'text-red-600' : isNearLimit ? 'text-amber-500' : 'text-slate-700'}`}>{budgetPercent}%</span>
+                    <span className="font-bold text-slate-700">{percent}%</span>
                   </div>
                 </div>
                 <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
                   <div 
-                    className={`h-full ${colorClass} rounded-full transition-all duration-500`}
-                    style={{ width: `${budgetPercent}%` }}
+                    className="h-full bg-indigo-600 rounded-full transition-all duration-500"
+                    style={{ width: `${percent}%` }}
                   />
                 </div>
               </div>
@@ -562,103 +553,244 @@ export default function DashboardPage() {
         )}
 
         {/* Filters and Date Selector Bar */}
-        <form onSubmit={handleFilter} className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row items-end gap-4 shadow-sm">
-          <div className="w-full flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            
-            {/* Start Date */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block">De (Início)</label>
-              <div className="relative">
-                <Calendar className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 text-xs bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded-xl outline-none transition-all font-semibold text-slate-750"
-                />
-              </div>
-            </div>
-            
-            {/* End Date */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block">Até (Fim)</label>
-              <div className="relative">
-                <Calendar className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 text-xs bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded-xl outline-none transition-all font-semibold text-slate-750"
-                />
-              </div>
-            </div>
-
-            {/* Credit Card Filter */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block">Cartão</label>
-              <select
-                value={selectedCardId}
-                onChange={(e) => setSelectedCardId(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded-xl outline-none transition-all font-semibold text-slate-600 cursor-pointer"
-              >
-                <option value="">Todos os Cartões</option>
-                {cards.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Category Filter */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block">Categoria</label>
-              <select
-                value={selectedCategoryId}
-                onChange={(e) => setSelectedCategoryId(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded-xl outline-none transition-all font-semibold text-slate-600 cursor-pointer"
-              >
-                <option value="">Todas as Categorias</option>
-                {categories.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Transaction Type Filter */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block">Tipo</label>
-              <select
-                value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded-xl outline-none transition-all font-semibold text-slate-600 cursor-pointer"
-              >
-                <option value="">Todos os Tipos</option>
-                <option value="INCOME">Receitas (Entradas)</option>
-                <option value="EXPENSE">Despesas (Saídas)</option>
-              </select>
-            </div>
-
-          </div>
-
-          <div className="flex gap-2.5 w-full md:w-auto shrink-0">
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 md:flex-none px-6 py-2.5 bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white font-bold rounded-xl text-xs transition-all duration-200 shrink-0"
-            >
-              Filtrar
-            </button>
-            {(startDate || endDate || selectedCardId || selectedCategoryId || selectedType) && (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={handleClearFilter}
-                disabled={loading}
-                className="flex-1 md:flex-none px-6 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl text-xs font-bold transition-all duration-200 shrink-0"
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+                className={`px-4 py-2.5 border rounded-xl text-xs font-bold flex items-center gap-2.5 transition-all select-none ${
+                  isFilterOpen || (startDate || endDate || selectedCardId || selectedCategoryId || selectedType)
+                    ? 'bg-indigo-50 border-indigo-200 text-indigo-600'
+                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                }`}
               >
-                Limpar
+                <Filter className="w-3.5 h-3.5" />
+                <span>
+                  Filtros
+                  {(() => {
+                    let count = 0
+                    if (startDate && endDate) count += 1
+                    if (selectedCardId) count += 1
+                    if (selectedCategoryId) count += 1
+                    if (selectedType) count += 1
+                    return count > 0 ? ` • ${count}` : ''
+                  })()}
+                </span>
+                {isFilterOpen ? (
+                  <ChevronUp className="w-3.5 h-3.5 text-indigo-500" />
+                ) : (
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                )}
               </button>
-            )}
+
+              {(startDate || endDate || selectedCardId || selectedCategoryId || selectedType) && (
+                <button
+                  type="button"
+                  onClick={handleClearFilter}
+                  disabled={loading}
+                  className="px-4 py-2.5 border border-slate-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600 text-slate-500 rounded-xl text-xs font-bold transition-all select-none"
+                >
+                  Limpar filtros
+                </button>
+              )}
+            </div>
           </div>
-        </form>
+
+          {/* Active Filter Chips */}
+          {(startDate || endDate || selectedCardId || selectedCategoryId || selectedType) && (
+            <div className="flex flex-wrap gap-2 items-center bg-slate-50/50 p-2 border border-slate-100 rounded-xl">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1">Filtros ativos:</span>
+              
+              {startDate && endDate && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-sm">
+                  <span>{`${startDate.split('-').reverse().join('/')} - ${endDate.split('-').reverse().join('/')}`}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStartDate('')
+                      setEndDate('')
+                      fetchDashboardAndProfile(
+                        undefined,
+                        undefined,
+                        selectedCardId || undefined,
+                        selectedCategoryId || undefined,
+                        selectedType || undefined
+                      )
+                    }}
+                    className="hover:bg-slate-100 p-0.5 rounded transition-colors text-slate-400 hover:text-red-500"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+
+              {selectedCardId && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-sm">
+                  <span>{cards.find(c => c.id === selectedCardId)?.name || 'Cartão'}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCardId('')
+                      fetchDashboardAndProfile(
+                        startDate || undefined,
+                        endDate || undefined,
+                        undefined,
+                        selectedCategoryId || undefined,
+                        selectedType || undefined
+                      )
+                    }}
+                    className="hover:bg-slate-100 p-0.5 rounded transition-colors text-slate-400 hover:text-red-500"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+
+              {selectedCategoryId && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-sm">
+                  <span>{categories.find(c => c.id === selectedCategoryId)?.name || 'Categoria'}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCategoryId('')
+                      fetchDashboardAndProfile(
+                        startDate || undefined,
+                        endDate || undefined,
+                        selectedCardId || undefined,
+                        undefined,
+                        selectedType || undefined
+                      )
+                    }}
+                    className="hover:bg-slate-100 p-0.5 rounded transition-colors text-slate-400 hover:text-red-500"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+
+              {selectedType && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-sm">
+                  <span>{selectedType === 'INCOME' ? 'Receitas' : 'Despesas'}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedType('')
+                      fetchDashboardAndProfile(
+                        startDate || undefined,
+                        endDate || undefined,
+                        selectedCardId || undefined,
+                        selectedCategoryId || undefined,
+                        undefined
+                      )
+                    }}
+                    className="hover:bg-slate-100 p-0.5 rounded transition-colors text-slate-400 hover:text-red-500"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Collapsible Panel content */}
+          <div className={`transition-all duration-300 ease-in-out origin-top ${isFilterOpen ? 'max-h-[500px] opacity-100 visible' : 'max-h-0 opacity-0 invisible overflow-hidden pointer-events-none'}`}>
+            <form onSubmit={handleFilter} className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 flex flex-col gap-4 shadow-sm">
+              <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                
+                {/* Start Date */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block">De (Início)</label>
+                  <div className="relative">
+                    <Calendar className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 text-xs bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded-xl outline-none transition-all font-semibold text-slate-750"
+                    />
+                  </div>
+                </div>
+                
+                {/* End Date */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block">Até (Fim)</label>
+                  <div className="relative">
+                    <Calendar className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 text-xs bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded-xl outline-none transition-all font-semibold text-slate-750"
+                    />
+                  </div>
+                </div>
+
+                {/* Credit Card Filter */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block">Cartão</label>
+                  <select
+                    value={selectedCardId}
+                    onChange={(e) => setSelectedCardId(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded-xl outline-none transition-all font-semibold text-slate-600 cursor-pointer"
+                  >
+                    <option value="">Todos os Cartões</option>
+                    {cards.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Category Filter */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block">Categoria</label>
+                  <select
+                    value={selectedCategoryId}
+                    onChange={(e) => setSelectedCategoryId(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded-xl outline-none transition-all font-semibold text-slate-600 cursor-pointer"
+                  >
+                    <option value="">Todas as Categorias</option>
+                    {categories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Transaction Type Filter */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block">Tipo</label>
+                  <select
+                    value={selectedType}
+                    onChange={(e) => setSelectedType(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-xs bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded-xl outline-none transition-all font-semibold text-slate-600 cursor-pointer"
+                  >
+                    <option value="">Todos os Tipos</option>
+                    <option value="INCOME">Receitas (Entradas)</option>
+                    <option value="EXPENSE">Despesas (Saídas)</option>
+                  </select>
+                </div>
+
+              </div>
+
+              <div className="flex justify-end gap-2.5 w-full border-t border-slate-100 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setIsFilterOpen(false)}
+                  className="px-5 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold rounded-xl text-xs transition-all duration-200"
+                >
+                  Fechar
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white font-bold rounded-xl text-xs transition-all duration-200 shadow-sm"
+                >
+                  Aplicar filtros
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
 
         {/* Page Content Render Area */}
         {loading && !dashboard ? (
@@ -932,50 +1064,53 @@ export default function DashboardPage() {
 
             </div>
 
-            {/* Central High-Fidelity SVG Chart Selector Card */}
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-8 shadow-sm space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
-                <div>
-                  <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Análise Gráfica Dinâmica</h3>
-                  <p className="text-xs text-slate-400 mt-1">Selecione uma visualização para monitorar os dados em tempo real.</p>
+            {/* Dynamic Dashboard Charts Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              
+              {/* Card 1: Distribuição de Despesas por Categoria */}
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+                <div className="border-b border-slate-100 pb-4 mb-5">
+                  <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Despesas por Categoria (Distribuição)</h3>
+                  <p className="text-[11px] text-slate-400 mt-1 font-medium">Divisão percentual de cada categoria no total de saídas do período.</p>
                 </div>
-                
-                {/* Chart segment select button group */}
-                <div className="flex p-1 bg-slate-100 rounded-xl max-w-full overflow-x-auto select-none">
-                  <button
-                    onClick={() => setActiveChart('evolution')}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${activeChart === 'evolution' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-                  >
-                    Evolução
-                  </button>
-                  <button
-                    onClick={() => setActiveChart('comparison')}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${activeChart === 'comparison' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-                  >
-                    Receita vs Despesa
-                  </button>
-                  <button
-                    onClick={() => setActiveChart('expenses_category')}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${activeChart === 'expenses_category' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-                  >
-                    Gastos Categoria
-                  </button>
-                  <button
-                    onClick={() => setActiveChart('distribution')}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${activeChart === 'distribution' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-                  >
-                    Distribuição
-                  </button>
+                <div className="flex-1 flex flex-col justify-center min-h-[250px]">
+                  {renderDistributionChart()}
                 </div>
               </div>
 
-              {/* Selected Chart Rendering Panel */}
-              <div className="min-h-[250px] flex flex-col justify-center">
-                {activeChart === 'evolution' && renderEvolutionChart()}
-                {activeChart === 'comparison' && renderComparisonChart()}
-                {activeChart === 'expenses_category' && renderExpensesCategoryChart()}
-                {activeChart === 'distribution' && renderDistributionChart()}
+              {/* Card 2: Evolução Financeira */}
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+                <div className="border-b border-slate-100 pb-4 mb-5">
+                  <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Evolução Financeira</h3>
+                  <p className="text-[11px] text-slate-400 mt-1 font-medium">Acompanhamento do saldo líquido mês a mês.</p>
+                </div>
+                <div className="flex-1 flex flex-col justify-center min-h-[250px]">
+                  {renderEvolutionChart()}
+                </div>
               </div>
+
+              {/* Card 3: Receitas vs Despesas */}
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+                <div className="border-b border-slate-100 pb-4 mb-5">
+                  <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Receitas x Despesas</h3>
+                  <p className="text-[11px] text-slate-400 mt-1 font-medium">Comparativo mensal entre receitas e despesas acumuladas.</p>
+                </div>
+                <div className="flex-1 flex flex-col justify-center min-h-[250px]">
+                  {renderComparisonChart()}
+                </div>
+              </div>
+
+              {/* Card 4: Controle de Gastos por Categoria */}
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+                <div className="border-b border-slate-100 pb-4 mb-5">
+                  <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Participação de Gastos</h3>
+                  <p className="text-[11px] text-slate-400 mt-1 font-medium">Proporção individual de despesas por categoria no total de gastos.</p>
+                </div>
+                <div className="flex-1 flex flex-col justify-center min-h-[250px]">
+                  {renderExpensesCategoryChart()}
+                </div>
+              </div>
+
             </div>
 
             {/* Bottom Grid: Top Expenses and Recent Transactions list in elegant unboxed layout */}
