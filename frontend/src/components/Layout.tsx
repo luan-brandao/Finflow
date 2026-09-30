@@ -8,7 +8,9 @@ import {
   LogOut, 
   Menu, 
   X,
-  CreditCard
+  CreditCard,
+  Sun,
+  Moon
 } from 'lucide-react'
 import Logo from './Logo'
 import authService from '../services/authService'
@@ -24,8 +26,27 @@ export default function Layout({ children }: LayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [profile, setProfile] = useState<User | null>(null)
   const [showOnboarding, setShowOnboarding] = useState(false)
+  
+  // Theme state with instant client-safe initialization
+  const [isDark, setIsDark] = useState(() => {
+    const profileId = localStorage.getItem('finflow_last_user_id') || 'global';
+    const saved = localStorage.getItem(`finflow_theme_${profileId}`);
+    if (saved) return saved === 'dark';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  })
+
   const location = useLocation()
   const navigate = useNavigate()
+
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+    const profileId = profile ? profile.id : (localStorage.getItem('finflow_last_user_id') || 'global');
+    localStorage.setItem(`finflow_theme_${profileId}`, isDark ? 'dark' : 'light');
+  }, [isDark, profile])
 
   useEffect(() => {
     // Auth check
@@ -38,6 +59,14 @@ export default function Layout({ children }: LayoutProps) {
     userService.getMe()
       .then((data) => {
         setProfile(data)
+        localStorage.setItem('finflow_last_user_id', data.id)
+        
+        // Check user-specific theme
+        const savedUserTheme = localStorage.getItem(`finflow_theme_${data.id}`)
+        if (savedUserTheme) {
+          setIsDark(savedUserTheme === 'dark')
+        }
+
         // Check if onboarding is completed for this user
         const completed = localStorage.getItem(`finflow_onboarding_completed_${data.id}`)
         if (completed !== 'true') {
@@ -72,7 +101,7 @@ export default function Layout({ children }: LayoutProps) {
   ]
 
   return (
-    <div className="min-h-screen bg-slate-50/50 text-slate-900 flex flex-col md:flex-row font-sans">
+    <div className="min-h-screen bg-slate-50/50 dark:bg-[#0B1220] text-slate-900 dark:text-slate-100 flex flex-col md:flex-row font-sans">
       
       {/* Sidebar - Desktop */}
       <aside className="hidden md:flex flex-col w-64 bg-[#0F172A] border-r border-slate-800 shrink-0 sticky top-0 h-screen text-slate-300">
@@ -108,7 +137,26 @@ export default function Layout({ children }: LayoutProps) {
         </nav>
 
         {/* User profile & Logout */}
-        <div className="p-4 border-t border-slate-800 flex flex-col gap-2">
+        <div className="p-4 border-t border-slate-800 flex flex-col gap-3">
+          
+          {/* Elegant Theme Switcher */}
+          <div className="flex p-1 bg-slate-800/60 rounded-xl select-none text-slate-400">
+            <button
+              onClick={() => setIsDark(false)}
+              className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${!isDark ? 'bg-slate-700 text-white shadow-sm' : 'hover:text-white'}`}
+            >
+              <Sun className="w-3.5 h-3.5 text-amber-400" />
+              <span>Claro</span>
+            </button>
+            <button
+              onClick={() => setIsDark(true)}
+              className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${isDark ? 'bg-indigo-600 text-white shadow-sm' : 'hover:text-white'}`}
+            >
+              <Moon className="w-3.5 h-3.5 text-indigo-200" />
+              <span>Escuro</span>
+            </button>
+          </div>
+
           {profile && (
             <div className="flex items-center gap-3 px-3 py-2 bg-slate-800/40 border border-slate-800/50 rounded-lg">
               <div className="w-8 h-8 rounded-full bg-indigo-500 text-white flex items-center justify-center font-bold text-xs shrink-0 uppercase select-none">
