@@ -11,3 +11,26 @@
 .font-mono {
   font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
+
+@media print {
+  aside, nav, button, form, .no-print, header {
+    display: none !important;
+  }
+  
+  main, .max-w-6xl, #root {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Force chart text and elements to have good contrast on white print backgrounds */
+  .dark {
+    --tw-bg-opacity: 1 !important;
+  }
+}

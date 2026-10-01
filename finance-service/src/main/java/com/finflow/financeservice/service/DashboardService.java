@@ -42,7 +42,7 @@ public class DashboardService {
             LocalDate startDate,
             LocalDate endDate
     ) {
-        return getDashboard(startDate, endDate, null, null, null);
+        return getDashboard(startDate, endDate, null, null, null, null);
     }
 
     @Transactional(readOnly = true)
@@ -52,6 +52,18 @@ public class DashboardService {
             UUID cardId,
             UUID categoryId,
             TransactionType type
+    ) {
+        return getDashboard(startDate, endDate, cardId, categoryId, type, null);
+    }
+
+    @Transactional(readOnly = true)
+    public DashboardResponseDTO getDashboard(
+            LocalDate startDate,
+            LocalDate endDate,
+            UUID cardId,
+            UUID categoryId,
+            TransactionType type,
+            UUID goalId
     ) {
         UUID userId = getAuthenticatedUserId();
 
@@ -77,6 +89,9 @@ public class DashboardService {
         }
         if (type != null) {
             stream = stream.filter(t -> type == t.getType());
+        }
+        if (goalId != null) {
+            stream = stream.filter(t -> goalId.equals(t.getGoalId()));
         }
         List<Transaction> filtered = stream.toList();
 

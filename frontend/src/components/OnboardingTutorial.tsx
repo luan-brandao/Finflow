@@ -26,7 +26,7 @@ interface StepConfig {
   icon: any
 }
 
-export default function OnboardingTutorial({ userId: _userId, onComplete }: OnboardingTutorialProps) {
+export default function OnboardingTutorial({ userId, onComplete }: OnboardingTutorialProps) {
   const [step, setStep] = useState(1)
   const [income, setIncome] = useState('4500.00')
   const [loading, setLoading] = useState(false)
@@ -34,6 +34,11 @@ export default function OnboardingTutorial({ userId: _userId, onComplete }: Onbo
   const [successMsg, setSuccessMsg] = useState('')
   const [rect, setRect] = useState<DOMRect | null>(null)
   const [hasIncome, setIncomeSaved] = useState(false)
+
+  useEffect(() => {
+    // Log active user onboarding context
+    console.log('Iniciando tutorial para o usuário:', userId)
+  }, [userId])
 
   const steps: StepConfig[] = [
     {

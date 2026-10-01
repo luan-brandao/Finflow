@@ -25,6 +25,8 @@ public record TransactionResponseDTO(
 
         UUID cardId,
 
+        UUID goalId,
+
         LocalDateTime createdAt
 
 ) {

@@ -92,6 +92,7 @@ export interface Transaction {
   categoryId: string;
   date: string;
   cardId?: string; // Prepared for future card link
+  goalId?: string;
   createdAt?: string;
 }
 
@@ -102,6 +103,24 @@ export interface TransactionRequest {
   categoryId: string;
   date: string;
   cardId?: string; // Prepared for future card link
+  goalId?: string;
+}
+
+export interface Goal {
+  id: string;
+  userId?: string;
+  title: string;
+  targetAmount: number;
+  currentAmount: number;
+  targetDate: string;
+  createdAt?: string;
+}
+
+export interface GoalRequest {
+  title: string;
+  targetAmount: number;
+  currentAmount: number;
+  targetDate: string;
 }
 
 export interface Card {

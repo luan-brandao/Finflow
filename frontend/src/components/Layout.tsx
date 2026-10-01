@@ -11,7 +11,8 @@ import {
   CreditCard,
   Sun,
   Moon,
-  Shield
+  Shield,
+  Target
 } from 'lucide-react'
 import Logo from './Logo'
 import authService from '../services/authService'
@@ -97,6 +98,7 @@ export default function Layout({ children }: LayoutProps) {
     { name: 'Transações', path: '/transactions', icon: ArrowLeftRight },
     { name: 'Categorias', path: '/categories', icon: Tag },
     { name: 'Cartões', path: '/cards', icon: CreditCard },
+    { name: 'Metas', path: '/goals', icon: Target },
     { name: 'Perfil', path: '/profile', icon: UserIcon },
   ]
 

@@ -38,7 +38,10 @@ public class DashboardController {
             UUID categoryId,
 
             @RequestParam(required = false)
-            TransactionType type
+            TransactionType type,
+
+            @RequestParam(required = false)
+            UUID goalId
     ) {
 
         if (startDate == null && endDate == null) {
@@ -66,7 +69,8 @@ public class DashboardController {
                         endDate,
                         cardId,
                         categoryId,
-                        type
+                        type,
+                        goalId
                 );
 
         return ResponseEntity.ok(dashboard);

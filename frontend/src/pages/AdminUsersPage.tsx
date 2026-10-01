@@ -24,7 +24,6 @@ export default function AdminUsersPage() {
   const [paginated, setPaginated] = useState<PaginatedUsers | null>(null)
   const [loading, setLoading] = useState(true)
   const [checkingAdmin, setCheckingAdmin] = useState(true)
-  const [isAdmin, setIsAdmin] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [currentPage, setCurrentPage] = useState(0)
@@ -53,7 +52,6 @@ export default function AdminUsersPage() {
     userService.getMe()
       .then((data) => {
         if (data.role === 'ADMIN') {
-          setIsAdmin(true)
           setCheckingAdmin(false)
           fetchUsers(0)
         } else {

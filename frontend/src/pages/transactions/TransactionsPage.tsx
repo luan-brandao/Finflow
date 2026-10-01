@@ -13,14 +13,16 @@ import {
   TrendingDown,
   Calendar,
   Search,
-  CreditCard
+  CreditCard,
+  Target
 } from 'lucide-react'
 import Layout from '../../components/Layout'
 import transactionService from '../../services/transactionService'
 import categoryService from '../../services/categoryService'
 import cardService from '../../services/cardService'
+import goalService from '../../services/goalService'
 import ConfirmModal from '../../components/ConfirmModal'
-import type { Transaction, Category, TransactionType, Card } from '../../types'
+import type { Transaction, Category, TransactionType, Card, Goal } from '../../types'
 
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -29,8 +31,9 @@ export default function TransactionsPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  // Credit Cards integration states
+  // Credit Cards and Goals integration states
   const [localCards, setLocalCards] = useState<Card[]>([])
+  const [goals, setGoals] = useState<Goal[]>([])
 
   // Confirmation state
   const [deleteId, setDeleteId] = useState<string | null>(null)
@@ -49,26 +52,30 @@ export default function TransactionsPage() {
   const [type, setType] = useState<TransactionType>('EXPENSE')
   const [categoryId, setCategoryId] = useState('')
   const [cardId, setCardId] = useState('') // card select
+  const [goalId, setGoalId] = useState('') // goal select
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
 
   // Filter state
   const [filterType, setFilterType] = useState<'ALL' | 'INCOME' | 'EXPENSE'>('ALL')
   const [filterCategory, setFilterCategory] = useState('ALL')
   const [filterCard, setFilterCard] = useState('ALL') // card filter
+  const [filterGoal, setFilterGoal] = useState('ALL') // goal filter
 
   const fetchData = async () => {
     setLoading(true)
     setError('')
     try {
-      const [txs, cats, cardsData] = await Promise.all([
+      const [txs, cats, cardsData, goalsData] = await Promise.all([
         transactionService.findAll(),
         categoryService.findAll(),
-        cardService.findAll()
+        cardService.findAll(),
+        goalService.findAll()
       ])
       
       setTransactions(txs)
       setCategories(cats)
       setLocalCards(cardsData)
+      setGoals(goalsData)
 
       if (cats.length > 0 && !categoryId) {
         setCategoryId(cats[0].id)
@@ -94,6 +101,7 @@ export default function TransactionsPage() {
       setCategoryId(categories[0].id)
     }
     setCardId('')
+    setGoalId('')
     setDate(new Date().toISOString().split('T')[0])
     setIsFormOpen(true)
     setError('')
@@ -107,6 +115,7 @@ export default function TransactionsPage() {
     setType(tx.type)
     setCategoryId(tx.categoryId)
     setCardId(tx.cardId || '')
+    setGoalId(tx.goalId || '')
     setDate(tx.date)
     setIsFormOpen(true)
     setError('')
@@ -157,7 +166,8 @@ export default function TransactionsPage() {
       type,
       categoryId,
       date,
-      cardId: (type === 'EXPENSE' && cardId) ? cardId : undefined
+      cardId: (type === 'EXPENSE' && cardId) ? cardId : undefined,
+      goalId: goalId || undefined
     }
 
     try {
@@ -199,13 +209,20 @@ export default function TransactionsPage() {
     return card ? card.name : null
   }
 
-  // Triple Filter logic: Type + Category + Credit Card + Instant Description Search
+  const getGoalName = (id?: string) => {
+    if (!id) return null
+    const goal = goals.find(g => g.id === id)
+    return goal ? goal.title : null
+  }
+
+  // Multi Filter logic: Type + Category + Credit Card + Goal + Instant Description Search
   const filteredTransactions = transactions.filter(tx => {
     const matchesType = filterType === 'ALL' || tx.type === filterType
     const matchesCategory = filterCategory === 'ALL' || tx.categoryId === filterCategory
     const matchesCard = filterCard === 'ALL' || tx.cardId === filterCard
+    const matchesGoal = filterGoal === 'ALL' || tx.goalId === filterGoal
     const matchesSearch = tx.description.toLowerCase().includes(searchTerm.toLowerCase())
-    return matchesType && matchesCategory && matchesCard && matchesSearch
+    return matchesType && matchesCategory && matchesCard && matchesGoal && matchesSearch
   })
 
   return (
@@ -222,7 +239,7 @@ export default function TransactionsPage() {
           <button
             onClick={handleOpenCreate}
             disabled={categories.length === 0}
-            className="self-start px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold rounded-xl text-xs transition-all duration-200 flex items-center justify-center gap-2 shadow-md shadow-indigo-500/10 disabled:opacity-50 cursor-pointer"
+            className="self-start px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold rounded-xl text-xs transition-all duration-200 flex items-center justify-center gap-2 shadow-md shadow-indigo-500/10 disabled:opacity-50 cursor-pointer animate-fade-in"
           >
             <Plus className="w-4 h-4" />
             <span>Adicionar Lançamento</span>
@@ -254,12 +271,12 @@ export default function TransactionsPage() {
         )}
 
         {/* Filter Toolbar (Segmented Filters & Search) */}
-        <div className="bg-white dark:bg-[#1E293B] border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-4 sm:p-5 flex flex-col lg:flex-row items-center justify-between gap-4 shadow-sm">
+        <div className="bg-white dark:bg-[#1E293B] border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-4 sm:p-5 flex flex-col xl:flex-row items-center justify-between gap-4 shadow-sm">
           
-          <div className="flex flex-col sm:flex-row flex-wrap items-center gap-4 w-full lg:w-auto">
+          <div className="flex flex-col sm:flex-row flex-wrap items-center gap-3 w-full xl:w-auto">
             
             {/* Search Bar */}
-            <div className="relative w-full sm:w-48">
+            <div className="relative w-full sm:w-44 shrink-0">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
@@ -271,27 +288,27 @@ export default function TransactionsPage() {
             </div>
 
             {/* Filter by Type */}
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <Filter className="w-4 h-4 text-slate-400 shrink-0" />
+            <div className="flex items-center gap-1.5 w-full sm:w-auto">
+              <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0" />
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value as any)}
-                className="w-full sm:w-auto text-xs font-bold text-slate-500 dark:text-slate-300 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 focus:border-indigo-500 dark:focus:border-indigo-500 focus:bg-white dark:focus:bg-[#1E293B] rounded-xl px-3 py-2 outline-none transition-all cursor-pointer font-semibold"
+                className="w-full sm:w-auto text-xs font-bold text-slate-500 dark:text-slate-300 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 focus:border-indigo-500 dark:focus:border-indigo-500 focus:bg-white dark:focus:bg-[#1E293B] rounded-xl px-2.5 py-2 outline-none transition-all cursor-pointer font-semibold"
               >
-                <option value="ALL">Todos os Tipos</option>
-                <option value="INCOME">Apenas Receitas</option>
-                <option value="EXPENSE">Apenas Despesas</option>
+                <option value="ALL">Tipos</option>
+                <option value="INCOME">Receitas</option>
+                <option value="EXPENSE">Despesas</option>
               </select>
             </div>
 
             {/* Filter by Category */}
-            <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="flex items-center gap-1.5 w-full sm:w-auto">
               <select
                 value={filterCategory}
                 onChange={(e) => setFilterCategory(e.target.value)}
-                className="w-full sm:w-auto text-xs font-bold text-slate-500 dark:text-slate-300 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 focus:border-indigo-500 dark:focus:border-indigo-500 focus:bg-white dark:focus:bg-[#1E293B] rounded-xl px-3 py-2 outline-none transition-all cursor-pointer font-semibold"
+                className="w-full sm:w-auto text-xs font-bold text-slate-500 dark:text-slate-300 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 focus:border-indigo-500 dark:focus:border-indigo-500 focus:bg-white dark:focus:bg-[#1E293B] rounded-xl px-2.5 py-2 outline-none transition-all cursor-pointer font-semibold"
               >
-                <option value="ALL">Todas as Categorias</option>
+                <option value="ALL">Categorias</option>
                 {categories.map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
@@ -299,23 +316,37 @@ export default function TransactionsPage() {
             </div>
 
             {/* Filter by Credit Card */}
-            <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="flex items-center gap-1.5 w-full sm:w-auto">
               <select
                 value={filterCard}
                 onChange={(e) => setFilterCard(e.target.value)}
-                className="w-full sm:w-auto text-xs font-bold text-slate-500 dark:text-slate-300 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 focus:border-indigo-500 dark:focus:border-indigo-500 focus:bg-white dark:focus:bg-[#1E293B] rounded-xl px-3 py-2 outline-none transition-all cursor-pointer font-semibold"
+                className="w-full sm:w-auto text-xs font-bold text-slate-500 dark:text-slate-300 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 focus:border-indigo-500 dark:focus:border-indigo-500 focus:bg-white dark:focus:bg-[#1E293B] rounded-xl px-2.5 py-2 outline-none transition-all cursor-pointer font-semibold"
               >
-                <option value="ALL">Todos os Cartões</option>
+                <option value="ALL">Cartões</option>
                 {localCards.map(card => (
                   <option key={card.id} value={card.id}>{card.name}</option>
                 ))}
               </select>
             </div>
 
+            {/* Filter by Goal */}
+            <div className="flex items-center gap-1.5 w-full sm:w-auto">
+              <select
+                value={filterGoal}
+                onChange={(e) => setFilterGoal(e.target.value)}
+                className="w-full sm:w-auto text-xs font-bold text-slate-500 dark:text-slate-300 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 focus:border-indigo-500 dark:focus:border-indigo-500 focus:bg-white dark:focus:bg-[#1E293B] rounded-xl px-2.5 py-2 outline-none transition-all cursor-pointer font-semibold"
+              >
+                <option value="ALL">Metas</option>
+                {goals.map(goal => (
+                  <option key={goal.id} value={goal.id}>{goal.title}</option>
+                ))}
+              </select>
+            </div>
+
           </div>
 
-          <div className="text-xs font-bold text-slate-400 dark:text-slate-500 font-mono tracking-wider uppercase select-none">
-            {filteredTransactions.length} Lançamentos Encontrados
+          <div className="text-xs font-bold text-slate-400 dark:text-slate-500 font-mono tracking-wider uppercase select-none shrink-0">
+            {filteredTransactions.length} Lançamentos
           </div>
         </div>
 
@@ -334,7 +365,7 @@ export default function TransactionsPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 items-end">
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 items-end">
               
               {/* Type Switch Selector */}
               <div className="space-y-1.5">
@@ -373,7 +404,7 @@ export default function TransactionsPage() {
 
               {/* Amount Input */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Valor Gasto (R$)</label>
+                <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Valor do Lançamento (R$)</label>
                 <input
                   type="number"
                   step="0.01"
@@ -419,6 +450,33 @@ export default function TransactionsPage() {
                 </select>
               </div>
 
+              {/* Goal Association Selector */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Vincular a um Objetivo (Meta)</label>
+                <select
+                  value={goalId}
+                  onChange={(e) => setGoalId(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 focus:border-indigo-500 dark:focus:border-indigo-500 rounded-xl outline-none transition-all cursor-pointer font-semibold text-slate-600 dark:text-slate-300"
+                >
+                  <option value="">Nenhum Objetivo</option>
+                  {goals.map(g => (
+                    <option key={g.id} value={g.id}>{g.title}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Date Input */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Data</label>
+                <input
+                  type="date"
+                  required
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 focus:border-indigo-500 dark:focus:border-indigo-500 rounded-xl outline-none transition-all font-semibold text-slate-700 dark:text-slate-200"
+                />
+              </div>
+
               {type === 'EXPENSE' && cardId && (() => {
                 const selectedCard = localCards.find(c => c.id === cardId)
                 if (!selectedCard) return null
@@ -432,7 +490,7 @@ export default function TransactionsPage() {
                 const isExceeded = inputVal > availableLimit
 
                 return (
-                  <div className="lg:col-span-6 p-3.5 bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-100/50 dark:border-indigo-900/30 rounded-xl space-y-2 mt-2">
+                  <div className="sm:col-span-2 lg:col-span-3 p-3.5 bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-100/50 dark:border-indigo-900/30 rounded-xl space-y-2 mt-2">
                     <div className="flex flex-wrap items-center justify-between text-xs font-semibold gap-2">
                       <span className="text-indigo-700 dark:text-indigo-400 font-bold">Resumo do Cartão {selectedCard.name}:</span>
                       <div className="flex gap-4 text-[11px] font-mono font-bold text-slate-500 dark:text-slate-400">
@@ -452,20 +510,8 @@ export default function TransactionsPage() {
                 )
               })()}
 
-              {/* Date Input */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Data</label>
-                <input
-                  type="date"
-                  required
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 focus:border-indigo-500 dark:focus:border-indigo-500 rounded-xl outline-none transition-all font-semibold text-slate-700 dark:text-slate-200"
-                />
-              </div>
-
               {/* Submit Buttons footer */}
-              <div className="lg:col-span-6 flex justify-end gap-3 pt-3">
+              <div className="sm:col-span-2 lg:col-span-3 flex justify-end gap-3 pt-3">
                 <button
                   type="button"
                   onClick={handleCloseForm}
@@ -500,15 +546,16 @@ export default function TransactionsPage() {
             <div className="py-24 text-center text-slate-400 dark:text-slate-500 flex flex-col items-center justify-center gap-3 bg-white dark:bg-[#1E293B]">
               <ArrowLeftRight className="w-12 h-10 text-slate-300 dark:text-slate-700" />
               <p className="text-sm font-bold">Nenhum lançamento localizado.</p>
-              <p className="text-xs max-w-xs leading-relaxed text-slate-400 dark:text-slate-500 font-medium">Use o botão no topo para registrar receitas ou despesas e ter visibilidade do seu orçamento diário.</p>
+              <p className="text-xs max-w-xs leading-relaxed text-slate-400 dark:text-slate-550 font-medium">Use o botão no topo para registrar receitas ou despesas e ter visibilidade do seu orçamento diário.</p>
             </div>
           ) : (
             <div className="divide-y divide-slate-100 dark:divide-slate-800/60">
               {filteredTransactions.map((tx) => {
                 const isIncome = tx.type === 'INCOME'
                 const cardName = getCardName(tx.cardId)
+                const goalName = getGoalName(tx.goalId)
                 return (
-                  <div key={tx.id} className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/30 dark:hover:bg-slate-800/40 transition-colors">
+                  <div key={tx.id} className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/30 dark:hover:bg-slate-800/40 transition-colors animate-fade-in">
                     
                     <div className="flex items-start sm:items-center gap-4 min-w-0">
                       
@@ -535,6 +582,15 @@ export default function TransactionsPage() {
                               <div className="flex items-center gap-1 text-indigo-500 dark:text-indigo-400 font-bold select-none">
                                 <CreditCard className="w-3.5 h-3.5 shrink-0 text-indigo-400" />
                                 <span>{cardName}</span>
+                              </div>
+                            </>
+                          )}
+                          {goalName && (
+                            <>
+                              <span aria-hidden="true" className="text-slate-200 dark:text-slate-800">·</span>
+                              <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold select-none">
+                                <Target className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
+                                <span>{goalName}</span>
                               </div>
                             </>
                           )}

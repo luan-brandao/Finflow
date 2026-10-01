@@ -11,17 +11,18 @@ import {
   FolderMinus,
   Receipt,
   CreditCard,
-  Filter,
   ChevronDown,
   ChevronUp,
-  X
+  X,
+  Printer
 } from 'lucide-react'
 import Layout from '../../components/Layout'
 import dashboardService from '../../services/dashboardService'
 import userService from '../../services/userService'
 import cardService from '../../services/cardService'
 import categoryService from '../../services/categoryService'
-import type { DashboardResponse, User, Card, Category } from '../../types'
+import goalService from '../../services/goalService'
+import type { DashboardResponse, User, Card, Category, Goal } from '../../types'
 
 export default function DashboardPage() {
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null)
@@ -37,10 +38,12 @@ export default function DashboardPage() {
   const [selectedCardId, setSelectedCardId] = useState('')
   const [selectedCategoryId, setSelectedCategoryId] = useState('')
   const [selectedType, setSelectedType] = useState('')
+  const [selectedGoalId, setSelectedGoalId] = useState('')
 
   // Filter option lists
   const [cards, setCards] = useState<Card[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const [goals, setGoals] = useState<Goal[]>([])
 
   // Filters collapsibility
   const [isFilterOpen, setIsFilterOpen] = useState(false)
@@ -50,13 +53,14 @@ export default function DashboardPage() {
     end?: string,
     cardId?: string,
     catId?: string,
-    type?: string
+    type?: string,
+    goalId?: string
   ) => {
     setLoading(true)
     setError('')
     try {
       const [dashData, profData] = await Promise.all([
-        dashboardService.getDashboard(start, end, cardId, catId, type),
+        dashboardService.getDashboard(start, end, cardId, catId, type, goalId),
         profile ? Promise.resolve(profile) : userService.getMe()
       ])
       setDashboard(dashData)
@@ -75,6 +79,7 @@ export default function DashboardPage() {
     // Fetch filter options once
     cardService.findAll().then(setCards).catch(console.error)
     categoryService.findAll().then(setCategories).catch(console.error)
+    goalService.findAll().then(setGoals).catch(console.error)
   }, [])
 
   const handleFilter = (e: React.FormEvent) => {
@@ -92,7 +97,8 @@ export default function DashboardPage() {
       endDate || undefined,
       selectedCardId || undefined,
       selectedCategoryId || undefined,
-      selectedType || undefined
+      selectedType || undefined,
+      selectedGoalId || undefined
     )
   }
 
@@ -102,6 +108,7 @@ export default function DashboardPage() {
     setSelectedCardId('')
     setSelectedCategoryId('')
     setSelectedType('')
+    setSelectedGoalId('')
     fetchDashboardAndProfile()
   }
 
@@ -514,10 +521,83 @@ export default function DashboardPage() {
 
   return (
     <Layout>
+      <style>{`
+        @media print {
+          aside, header, .no-print, [id^="tour-"], .no-print * {
+            display: none !important;
+          }
+          
+          body, html, #root, main, .animate-fade-in {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+            color: #0F172A !important;
+          }
+
+          main {
+            padding: 20px !important;
+          }
+
+          .grid {
+            display: grid !important;
+          }
+
+          .bg-white, .dark\\:bg-\\[\\#1E293B\\] {
+            background-color: #ffffff !important;
+            border: 1px solid #E2E8F0 !important;
+            color: #0F172A !important;
+            box-shadow: none !important;
+            break-inside: avoid !important;
+          }
+
+          .text-slate-900, .dark\\:text-white, .text-slate-850, .text-slate-800, .text-slate-950, .dark\\:text-slate-200 {
+            color: #0F172A !important;
+          }
+          
+          .text-slate-400, .text-slate-500, .dark\\:text-slate-500 {
+            color: #475569 !important;
+          }
+
+          .bg-slate-100 {
+            background-color: #F1F5F9 !important;
+          }
+          
+          .bg-emerald-500 {
+            background-color: #10B981 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          .bg-indigo-600 {
+            background-color: #4F46E5 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          svg {
+            max-width: 100% !important;
+          }
+        }
+      `}</style>
       <div className="space-y-10 animate-fade-in max-w-6xl mx-auto">
         
+        {/* Print-only Header */}
+        <div className="hidden print:block border-b-2 border-slate-800 pb-4 mb-6">
+          <h1 className="text-2xl font-bold text-slate-900">Finflow • Relatório de Inteligência Financeira</h1>
+          <p className="text-xs text-slate-500 mt-1">Gerado em {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR')}</p>
+          <div className="mt-2 text-xs flex flex-wrap gap-4 text-slate-600 font-medium">
+            {startDate && endDate && <span>Período: {startDate.split('-').reverse().join('/')} até {endDate.split('-').reverse().join('/')}</span>}
+            {selectedCardId && <span>Cartão: {cards.find(c => c.id === selectedCardId)?.name}</span>}
+            {selectedCategoryId && <span>Categoria: {categories.find(c => c.id === selectedCategoryId)?.name}</span>}
+            {selectedType && <span>Tipo: {selectedType === 'INCOME' ? 'Receitas' : 'Despesas'}</span>}
+            {selectedGoalId && <span>Meta: {goals.find(g => g.id === selectedGoalId)?.title}</span>}
+          </div>
+        </div>
+
         {/* Dynamic Personal Header with Greet Emoji */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800/80 pb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800/80 pb-6 print:hidden">
           <div className="space-y-1.5">
             <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
               <span>Olá, {profile ? profile.name : 'Carregando...'}</span>
@@ -528,20 +608,32 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          <button
-            onClick={() => fetchDashboardAndProfile(
-              startDate || undefined,
-              endDate || undefined,
-              selectedCardId || undefined,
-              selectedCategoryId || undefined,
-              selectedType || undefined
-            )}
-            disabled={loading}
-            className="self-start px-4 py-2 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white flex items-center gap-2 transition-all disabled:opacity-50 cursor-pointer"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            <span>Atualizar Painel</span>
-          </button>
+          <div className="flex items-center gap-3 self-start">
+            <button
+              onClick={() => fetchDashboardAndProfile(
+                startDate || undefined,
+                endDate || undefined,
+                selectedCardId || undefined,
+                selectedCategoryId || undefined,
+                selectedType || undefined,
+                selectedGoalId || undefined
+              )}
+              disabled={loading}
+              className="px-4 py-2 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white flex items-center gap-2 transition-all disabled:opacity-50 cursor-pointer rounded-xl text-xs font-semibold"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              <span>Atualizar Painel</span>
+            </button>
+
+            <button
+              onClick={() => window.print()}
+              disabled={loading || !dashboard}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-750 text-white flex items-center gap-2 transition-all disabled:opacity-50 cursor-pointer rounded-xl text-xs font-bold shadow-md shadow-indigo-500/10 active:scale-95"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>Exportar PDF</span>
+            </button>
+          </div>
         </div>
 
         {/* Error Notification */}
@@ -594,7 +686,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Active Filter Chips */}
-          {(startDate || endDate || selectedCardId || selectedCategoryId || selectedType) && (
+          {(startDate || endDate || selectedCardId || selectedCategoryId || selectedType || selectedGoalId) && (
             <div className="flex flex-wrap gap-2 items-center bg-slate-50/50 dark:bg-slate-900/40 p-2 border border-slate-100 dark:border-slate-800/60 rounded-xl">
               <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider px-1">Filtros ativos:</span>
               
@@ -622,7 +714,8 @@ export default function DashboardPage() {
                         undefined,
                         selectedCardId || undefined,
                         selectedCategoryId || undefined,
-                        selectedType || undefined
+                        selectedType || undefined,
+                        selectedGoalId || undefined
                       )
                     }}
                     className="hover:bg-slate-100 dark:hover:bg-slate-800 p-0.5 rounded transition-colors text-slate-400 hover:text-red-500 cursor-pointer"
@@ -645,7 +738,8 @@ export default function DashboardPage() {
                         endDate || undefined,
                         undefined,
                         selectedCategoryId || undefined,
-                        selectedType || undefined
+                        selectedType || undefined,
+                        selectedGoalId || undefined
                       )
                     }}
                     className="hover:bg-slate-100 dark:hover:bg-slate-800 p-0.5 rounded transition-colors text-slate-400 hover:text-red-500 cursor-pointer"
@@ -668,7 +762,8 @@ export default function DashboardPage() {
                         endDate || undefined,
                         selectedCardId || undefined,
                         undefined,
-                        selectedType || undefined
+                        selectedType || undefined,
+                        selectedGoalId || undefined
                       )
                     }}
                     className="hover:bg-slate-100 dark:hover:bg-slate-800 p-0.5 rounded transition-colors text-slate-400 hover:text-red-500 cursor-pointer"
@@ -691,11 +786,36 @@ export default function DashboardPage() {
                         endDate || undefined,
                         selectedCardId || undefined,
                         selectedCategoryId || undefined,
-                        undefined
+                        undefined,
+                        selectedGoalId || undefined
                       )
                     }}
                     className="hover:bg-slate-100 dark:hover:bg-slate-800 p-0.5 rounded transition-colors text-slate-400 hover:text-red-500 cursor-pointer"
                     title="Remover filtro de tipo"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+
+              {selectedGoalId && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white dark:bg-[#1E293B] border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 shadow-sm">
+                  <span>{goals.find(g => g.id === selectedGoalId)?.title || 'Meta'}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedGoalId('')
+                      fetchDashboardAndProfile(
+                        startDate || undefined,
+                        endDate || undefined,
+                        selectedCardId || undefined,
+                        selectedCategoryId || undefined,
+                        selectedType || undefined,
+                        undefined
+                      )
+                    }}
+                    className="hover:bg-slate-100 dark:hover:bg-slate-800 p-0.5 rounded transition-colors text-slate-400 hover:text-red-500 cursor-pointer"
+                    title="Remover filtro de meta"
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -707,7 +827,7 @@ export default function DashboardPage() {
           {/* Collapsible Panel content */}
           <div className={`transition-all duration-300 ease-in-out origin-top ${isFilterOpen ? 'max-h-[500px] opacity-100 visible' : 'max-h-0 opacity-0 invisible overflow-hidden pointer-events-none'}`}>
             <form onSubmit={handleFilter} className="bg-white dark:bg-[#1E293B] border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-4 sm:p-5 flex flex-col gap-4 shadow-sm">
-              <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+              <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                 
                 {/* Start Date */}
                 <div className="space-y-1.5">
@@ -778,6 +898,21 @@ export default function DashboardPage() {
                     <option value="">Todos os Tipos</option>
                     <option value="INCOME">Receitas (Entradas)</option>
                     <option value="EXPENSE">Despesas (Saídas)</option>
+                  </select>
+                </div>
+
+                {/* Goal Filter */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">Meta Financeira</label>
+                  <select
+                    value={selectedGoalId}
+                    onChange={(e) => setSelectedGoalId(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 focus:border-indigo-500 dark:focus:border-indigo-500 focus:bg-white dark:focus:bg-[#1E293B] rounded-xl outline-none transition-all font-semibold text-slate-600 dark:text-slate-300 cursor-pointer"
+                  >
+                    <option value="">Todas as Metas</option>
+                    {goals.map(g => (
+                      <option key={g.id} value={g.id}>{g.title}</option>
+                    ))}
                   </select>
                 </div>
 

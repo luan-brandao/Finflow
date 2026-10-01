@@ -8,6 +8,7 @@ import CategoriesPage from '../pages/categories/CategoriesPage'
 import CardsPage from '../pages/cards/CardsPage'
 import ProfilePage from '../pages/profile/ProfilePage'
 import AdminUsersPage from '../pages/AdminUsersPage'
+import GoalsPage from '../pages/goals/GoalsPage'
 
 function AppRoutes() {
   return (
@@ -21,6 +22,7 @@ function AppRoutes() {
       <Route path="/cards" element={<CardsPage />} />
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="/admin/users" element={<AdminUsersPage />} />
+      <Route path="/goals" element={<GoalsPage />} />
     </Routes>
   )
 }

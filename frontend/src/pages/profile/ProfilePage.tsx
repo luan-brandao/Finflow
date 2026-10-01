@@ -12,9 +12,7 @@ import {
   EyeOff,
   Edit2,
   Shield,
-  Coins,
-  ChevronDown,
-  ChevronUp
+  Coins
 } from 'lucide-react'
 import Layout from '../../components/Layout'
 import userService from '../../services/userService'

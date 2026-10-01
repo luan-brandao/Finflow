@@ -9,12 +9,12 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "transactions")
+@Table(name = "goals")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class Transaction {
+public class Goal {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -24,26 +24,16 @@ public class Transaction {
     private UUID userId;
 
     @Column(nullable = false, length = 150)
-    private String description;
+    private String title;
 
-    @Column(nullable = false, precision = 15, scale = 2)
-    private BigDecimal amount;
+    @Column(name = "target_amount", nullable = false, precision = 15, scale = 2)
+    private BigDecimal targetAmount;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private TransactionType type;
+    @Column(name = "current_amount", nullable = false, precision = 15, scale = 2)
+    private BigDecimal currentAmount;
 
-    @Column(name = "category_id", nullable = false)
-    private UUID categoryId;
-
-    @Column(name = "card_id")
-    private UUID cardId;
-
-    @Column(name = "goal_id")
-    private UUID goalId;
-
-    @Column(nullable = false)
-    private LocalDate date;
+    @Column(name = "target_date", nullable = false)
+    private LocalDate targetDate;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -51,5 +41,8 @@ public class Transaction {
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
+        if (currentAmount == null) {
+            currentAmount = BigDecimal.ZERO;
+        }
     }
 }

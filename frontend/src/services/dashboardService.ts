@@ -7,7 +7,8 @@ export const dashboardService = {
     endDate?: string,
     cardId?: string,
     categoryId?: string,
-    type?: string
+    type?: string,
+    goalId?: string
   ): Promise<DashboardResponse> {
     const params: Record<string, string> = {}
     if (startDate && endDate) {
@@ -22,6 +23,9 @@ export const dashboardService = {
     }
     if (type) {
       params.type = type
+    }
+    if (goalId) {
+      params.goalId = goalId
     }
     const response = await api.get<DashboardResponse>('/api/dashboard', { params })
     const data = response.data

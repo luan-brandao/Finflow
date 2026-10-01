@@ -10,6 +10,7 @@ import com.finflow.financeservice.model.Transaction;
 import com.finflow.financeservice.repository.CategoryRepository;
 import com.finflow.financeservice.repository.TransactionRepository;
 import com.finflow.financeservice.repository.CardRepository;
+import com.finflow.financeservice.repository.GoalRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -27,6 +28,7 @@ public class TransactionService {
     private final TransactionMapper transactionMapper;
     private final CategoryRepository categoryRepository;
     private final CardRepository cardRepository;
+    private final GoalRepository goalRepository;
 
     @Transactional
     public TransactionResponseDTO create(TransactionRequestDTO request) {
@@ -35,6 +37,7 @@ public class TransactionService {
 
         validateCategory(request.categoryId(), userId);
         validateCard(request.cardId(), request.type(), userId);
+        validateGoal(request.goalId(), userId);
         validateCardLimit(request.cardId(), request.type(), request.amount(), null, userId);
 
         Transaction transaction = new Transaction();
@@ -45,10 +48,13 @@ public class TransactionService {
         transaction.setType(request.type());
         transaction.setCategoryId(request.categoryId());
         transaction.setCardId(request.cardId());
+        transaction.setGoalId(request.goalId());
         transaction.setDate(request.date());
 
         Transaction savedTransaction =
                 transactionRepository.save(transaction);
+
+        updateGoalAmountOnCreate(request.goalId(), request.amount(), request.type());
 
         return transactionMapper.toResponseDTO(savedTransaction);
     }
@@ -87,17 +93,26 @@ public class TransactionService {
 
         validateCategory(request.categoryId(), userId);
         validateCard(request.cardId(), request.type(), userId);
+        validateGoal(request.goalId(), userId);
         validateCardLimit(request.cardId(), request.type(), request.amount(), id, userId);
+
+        UUID oldGoalId = transaction.getGoalId();
+        java.math.BigDecimal oldAmount = transaction.getAmount();
+        com.finflow.financeservice.model.TransactionType oldType = transaction.getType();
 
         transaction.setDescription(request.description());
         transaction.setAmount(request.amount());
         transaction.setType(request.type());
         transaction.setCategoryId(request.categoryId());
         transaction.setCardId(request.cardId());
+        transaction.setGoalId(request.goalId());
         transaction.setDate(request.date());
 
         Transaction updatedTransaction =
                 transactionRepository.save(transaction);
+
+        updateGoalAmountOnDelete(oldGoalId, oldAmount, oldType);
+        updateGoalAmountOnCreate(request.goalId(), request.amount(), request.type());
 
         return transactionMapper.toResponseDTO(updatedTransaction);
     }
@@ -109,7 +124,13 @@ public class TransactionService {
 
         Transaction transaction = findUserTransaction(id, userId);
 
+        UUID goalId = transaction.getGoalId();
+        java.math.BigDecimal amount = transaction.getAmount();
+        com.finflow.financeservice.model.TransactionType type = transaction.getType();
+
         transactionRepository.delete(transaction);
+
+        updateGoalAmountOnDelete(goalId, amount, type);
     }
 
     private void validateCategory(
@@ -244,6 +265,43 @@ public class TransactionService {
             throw new AccessDeniedException(
                     "Usuário autenticado inválido."
             );
+        }
+    }
+
+    private void validateGoal(UUID goalId, UUID userId) {
+        if (goalId == null) {
+            return;
+        }
+        var goal = goalRepository.findById(goalId)
+                .orElseThrow(() -> new ResourceNotFoundException("Meta não encontrada."));
+        if (!goal.getUserId().equals(userId)) {
+            throw new AccessDeniedException("Você não tem acesso a esta meta.");
+        }
+    }
+
+    private void updateGoalAmountOnCreate(UUID goalId, java.math.BigDecimal amount, com.finflow.financeservice.model.TransactionType type) {
+        if (goalId == null) return;
+        var goal = goalRepository.findById(goalId).orElse(null);
+        if (goal != null) {
+            if (type == com.finflow.financeservice.model.TransactionType.INCOME) {
+                goal.setCurrentAmount(goal.getCurrentAmount().add(amount));
+            } else {
+                goal.setCurrentAmount(goal.getCurrentAmount().subtract(amount));
+            }
+            goalRepository.save(goal);
+        }
+    }
+
+    private void updateGoalAmountOnDelete(UUID goalId, java.math.BigDecimal amount, com.finflow.financeservice.model.TransactionType type) {
+        if (goalId == null) return;
+        var goal = goalRepository.findById(goalId).orElse(null);
+        if (goal != null) {
+            if (type == com.finflow.financeservice.model.TransactionType.INCOME) {
+                goal.setCurrentAmount(goal.getCurrentAmount().subtract(amount));
+            } else {
+                goal.setCurrentAmount(goal.getCurrentAmount().add(amount));
+            }
+            goalRepository.save(goal);
         }
     }
 }
