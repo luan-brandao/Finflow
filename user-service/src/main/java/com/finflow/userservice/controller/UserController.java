@@ -132,4 +132,20 @@ public class UserController {
 
         return ResponseEntity.noContent().build();
     }
+
+    /*
+     * USUÁRIO LOGADO
+     * Atualiza o estado de onboarding do próprio usuário.
+     */
+    @PutMapping("/me/onboarding")
+    public ResponseEntity<UserResponseDTO> completeOnboarding(
+            Authentication authentication
+    ) {
+
+        UUID id = UUID.fromString(authentication.getName());
+
+        UserResponseDTO response = userService.completeOnboarding(id);
+
+        return ResponseEntity.ok(response);
+    }
 }

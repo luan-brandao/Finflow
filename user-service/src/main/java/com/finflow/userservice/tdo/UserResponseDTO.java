@@ -10,6 +10,7 @@ public record UserResponseDTO(
         String name,
         String email,
         Role role,
+        boolean onboardingCompleted,
         LocalDateTime created,
         LocalDateTime updated
 ) {

@@ -164,4 +164,18 @@ public class UserService {
 
         userRepository.delete(user);
     }
+
+    @Transactional
+    public UserResponseDTO completeOnboarding(UUID id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Usuário não encontrado"
+                        )
+                );
+
+        user.setOnboardingCompleted(true);
+        User updatedUser = userRepository.save(user);
+        return userMapper.toDTO(updatedUser);
+    }
 }

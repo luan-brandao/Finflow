@@ -12,6 +12,11 @@ export const userService = {
     return response.data
   },
 
+  async completeOnboarding(): Promise<User> {
+    const response = await api.put<User>('/api/users/me/onboarding')
+    return response.data
+  },
+
   // Admin operations
   async getAllUsers(page = 0, size = 10): Promise<PaginatedUsers> {
     const response = await api.get<PaginatedUsers>(`/api/users?page=${page}&size=${size}&sort=name,asc`)

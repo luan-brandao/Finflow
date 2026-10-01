@@ -67,6 +67,12 @@ public class SecurityConfig {
                         .authenticated()
 
                         .requestMatchers(
+                                HttpMethod.PUT,
+                                "/api/users/me/onboarding"
+                        )
+                        .authenticated()
+
+                        .requestMatchers(
                                 HttpMethod.DELETE,
                                 "/api/users/me"
                         )

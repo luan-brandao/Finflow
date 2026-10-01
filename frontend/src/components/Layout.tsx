@@ -68,9 +68,8 @@ export default function Layout({ children }: LayoutProps) {
           setIsDark(savedUserTheme === 'dark')
         }
 
-        // Check if onboarding is completed for this user
-        const completed = localStorage.getItem(`finflow_onboarding_completed_${data.id}`)
-        if (completed !== 'true') {
+        // Check if onboarding is completed for this user via backend field
+        if (!data.onboardingCompleted) {
           setShowOnboarding(true)
         }
       })

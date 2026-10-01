@@ -38,6 +38,9 @@ public class User {
     @Column(nullable = false)
     private Role role;
 
+    @Column(name = "onboarding_completed", nullable = false)
+    private boolean onboardingCompleted = false;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime created;

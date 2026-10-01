@@ -11,6 +11,7 @@ import {
   LayoutDashboard
 } from 'lucide-react'
 import monthlyIncomeService from '../services/monthlyIncomeService'
+import userService from '../services/userService'
 
 interface OnboardingTutorialProps {
   userId: string
@@ -153,13 +154,22 @@ export default function OnboardingTutorial({ userId, onComplete }: OnboardingTut
     }
   }
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
     if (!hasIncome) {
       setError('A configuração da renda de referência é obrigatória para concluir o onboarding.')
       return
     }
-    localStorage.setItem(`finflow_onboarding_completed_${userId}`, 'true')
-    onComplete()
+    setLoading(true)
+    setError('')
+    try {
+      await userService.completeOnboarding()
+      onComplete()
+    } catch (err: any) {
+      console.error(err)
+      setError('Erro ao salvar a conclusão do onboarding no backend.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const getPopoverStyle = () => {
