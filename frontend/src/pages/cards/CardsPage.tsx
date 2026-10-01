@@ -108,6 +108,9 @@ export default function CardsPage() {
 
       setIsFormOpen(false)
       await loadCards()
+      
+      // Auto clear success message
+      setTimeout(() => setSuccess(''), 4000)
     } catch (err: any) {
       console.error(err)
       setError(err.response?.data?.message || err.response?.data?.error || 'Erro ao salvar o cartão de crédito.')
@@ -115,8 +118,6 @@ export default function CardsPage() {
       setIsSubmitting(false)
     }
   }
-
-  // handleDelete is replaced by ConfirmModal inline action
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -130,15 +131,15 @@ export default function CardsPage() {
       <div className="space-y-10 animate-fade-in max-w-6xl mx-auto">
         
         {/* Title */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800/80 pb-6">
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Cartões de Crédito</h1>
-            <p className="text-slate-400 text-sm mt-1.5 font-medium">Cadastre e gerencie seus cartões e controle o limite disponível.</p>
+            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Cartões de Crédito</h1>
+            <p className="text-slate-400 dark:text-slate-500 text-sm mt-1.5 font-medium">Cadastre e gerencie seus cartões e controle o limite disponível.</p>
           </div>
           
           <button
             onClick={handleOpenCreate}
-            className="self-start px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold rounded-xl text-xs transition-all duration-200 flex items-center justify-center gap-2 shadow-md shadow-indigo-500/10"
+            className="self-start px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold rounded-xl text-xs transition-all duration-200 flex items-center justify-center gap-2 shadow-md shadow-indigo-500/10 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Cadastrar Cartão</span>
@@ -146,11 +147,11 @@ export default function CardsPage() {
         </div>
 
         {/* Backend Sincronizado Indicator */}
-        <div className="p-4 bg-emerald-50 border border-emerald-100/50 rounded-2xl flex items-start gap-3">
-          <Wallet className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-          <div className="text-xs text-emerald-800 font-semibold leading-relaxed">
+        <div className="p-4 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100/50 dark:border-emerald-900/30 rounded-2xl flex items-start gap-3 animate-fade-in">
+          <Wallet className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+          <div className="text-xs text-emerald-800 dark:text-emerald-400 font-semibold leading-relaxed">
             <span className="block font-bold">Ambiente Conectado</span>
-            <span className="block font-normal mt-0.5">
+            <span className="block font-normal mt-0.5 opacity-90">
               Sua carteira de cartões está totalmente conectada em tempo real ao backend do Finflow. Os limites utilizados são calculados automaticamente de forma segura com base nos lançamentos efetuados.
             </span>
           </div>
@@ -158,29 +159,29 @@ export default function CardsPage() {
 
         {/* Notifications */}
         {error && (
-          <div className="p-4 bg-red-50 border border-red-100/85 rounded-xl flex items-start gap-3">
+          <div className="p-4 bg-red-50 dark:bg-red-950/20 border border-red-100/85 dark:border-red-900/30 rounded-xl flex items-start gap-3 animate-fade-in">
             <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-            <span className="text-xs font-semibold text-red-700">{error}</span>
+            <span className="text-xs font-semibold text-red-700 dark:text-red-400">{error}</span>
           </div>
         )}
 
         {success && (
-          <div className="p-4 bg-emerald-50 border border-emerald-100/85 rounded-xl flex items-start gap-3">
+          <div className="p-4 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100/85 dark:border-emerald-900/30 rounded-xl flex items-start gap-3 animate-fade-in">
             <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-            <span className="text-xs font-semibold text-emerald-700">{success}</span>
+            <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">{success}</span>
           </div>
         )}
 
         {/* Edit / Create Form overlay section */}
         {isFormOpen && (
-          <div className="bg-slate-50 border border-indigo-100 rounded-2xl p-6 sm:p-8 shadow-sm space-y-6 animate-fade-in">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-4">
-              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
+          <div className="bg-slate-50 dark:bg-[#1E293B] border border-indigo-100 dark:border-slate-800 rounded-2xl p-6 sm:p-8 shadow-sm space-y-6 animate-fade-in">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800/60 pb-4">
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
                 {editingId ? 'Editar Limites do Cartão' : 'Cadastrar Cartão de Crédito'}
               </h3>
               <button
                 onClick={handleCloseForm}
-                className="p-1.5 text-slate-400 hover:bg-slate-200 rounded-lg transition-colors"
+                className="p-1.5 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -190,7 +191,7 @@ export default function CardsPage() {
               
               {/* Card Name */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Nome do Cartão (Instituição)</label>
+                <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Nome do Cartão (Instituição)</label>
                 <input
                   type="text"
                   maxLength={50}
@@ -198,13 +199,13 @@ export default function CardsPage() {
                   placeholder="Ex: Nubank, Itaú, Inter..."
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 hover:border-slate-300 focus:border-indigo-500 rounded-xl outline-none transition-all font-semibold text-slate-700"
+                  className="w-full px-3.5 py-2.5 text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 focus:border-indigo-500 focus:bg-white rounded-xl outline-none transition-all font-semibold text-slate-700 dark:text-slate-250"
                 />
               </div>
 
               {/* Total Limit */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Limite de Crédito Total (R$)</label>
+                <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Limite de Crédito Total (R$)</label>
                 <input
                   type="number"
                   step="0.01"
@@ -213,7 +214,7 @@ export default function CardsPage() {
                   placeholder="Ex: 5000"
                   value={limit}
                   onChange={(e) => setLimit(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 hover:border-slate-300 focus:border-indigo-500 rounded-xl outline-none transition-all font-mono font-bold text-slate-700"
+                  className="w-full px-3.5 py-2.5 text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 focus:border-indigo-500 rounded-xl outline-none transition-all font-mono font-bold text-slate-700 dark:text-slate-200"
                 />
               </div>
 
@@ -223,14 +224,14 @@ export default function CardsPage() {
                   type="button"
                   onClick={handleCloseForm}
                   disabled={isSubmitting}
-                  className="px-5 py-2.5 border border-slate-200 hover:bg-slate-100 text-slate-600 rounded-xl text-xs font-bold transition-all"
+                  className="px-5 py-2.5 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold transition-all cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                  className="px-6 py-2.5 bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-700 active:bg-slate-950 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   <span>Salvar Cartão</span>
@@ -245,13 +246,13 @@ export default function CardsPage() {
         {loading ? (
           <div className="py-24 flex flex-col items-center justify-center gap-3">
             <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
-            <p className="text-sm font-semibold text-slate-500">Buscando seus cartões de crédito...</p>
+            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Buscando seus cartões de crédito...</p>
           </div>
         ) : cards.length === 0 ? (
-          <div className="py-24 text-center text-slate-400 flex flex-col items-center justify-center gap-3 bg-white border border-slate-200/80 rounded-2xl shadow-sm">
-            <CreditCard className="w-12 h-10 text-slate-300" />
+          <div className="py-24 text-center text-slate-400 dark:text-slate-500 flex flex-col items-center justify-center gap-3 bg-white dark:bg-[#1E293B] border border-slate-200/80 dark:border-slate-800/80 rounded-2xl shadow-sm animate-fade-in">
+            <CreditCard className="w-12 h-10 text-slate-300 dark:text-slate-750" />
             <p className="text-sm font-bold">Nenhum cartão cadastrado.</p>
-            <p className="text-xs max-w-xs leading-relaxed text-slate-400 font-medium">Use o botão acima para cadastrar seu primeiro cartão e ter visibilidade do limite utilizado.</p>
+            <p className="text-xs max-w-xs leading-relaxed text-slate-400 dark:text-slate-550 font-medium">Use o botão acima para cadastrar seu primeiro cartão e ter visibilidade do limite utilizado.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -313,17 +314,17 @@ export default function CardsPage() {
                   </div>
 
                   {/* Actions overlay hover bar */}
-                  <div className="absolute top-4 right-4 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-white/10 backdrop-blur-md rounded-lg p-1">
+                  <div className="absolute top-4 right-4 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-white/10 backdrop-blur-md rounded-lg p-1 select-none">
                     <button
                       onClick={() => handleOpenEdit(card)}
-                      className="p-1.5 text-white/80 hover:text-white rounded-md hover:bg-white/10"
+                      className="p-1.5 text-white/80 hover:text-white rounded-md hover:bg-white/10 cursor-pointer"
                       title="Editar limites"
                     >
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => setDeleteId(card.id)}
-                      className="p-1.5 text-red-300 hover:text-red-400 rounded-md hover:bg-white/10"
+                      className="p-1.5 text-red-300 hover:text-red-450 rounded-md hover:bg-white/10 cursor-pointer"
                       title="Excluir"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
