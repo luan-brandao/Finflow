@@ -92,6 +92,9 @@ public class DashboardService {
         }
         if (goalId != null) {
             stream = stream.filter(t -> goalId.equals(t.getGoalId()));
+        } else {
+            // Exclude transactions linked to any goal when viewing the general/consolidated dashboard
+            stream = stream.filter(t -> t.getGoalId() == null);
         }
         List<Transaction> filtered = stream.toList();
 
