@@ -1,5 +1,5 @@
 import { api } from './api'
-import type { Card } from '../types'
+import type { Card, CardInvoice } from '../types'
 
 export const cardService = {
   async findAll(): Promise<Card[]> {
@@ -36,6 +36,21 @@ export const cardService = {
 
   async delete(id: string): Promise<void> {
     await api.delete(`/api/cards/${id}`)
+  },
+
+  async getInvoices(cardId: string): Promise<CardInvoice[]> {
+    const response = await api.get<CardInvoice[]>(`/api/cards/${cardId}/invoices`)
+    return response.data
+  },
+
+  async closeInvoice(cardId: string, year: number, month: number): Promise<CardInvoice> {
+    const response = await api.post<CardInvoice>(`/api/cards/${cardId}/invoices/close?year=${year}&month=${month}`)
+    return response.data
+  },
+
+  async payInvoice(cardId: string, invoiceId: string): Promise<CardInvoice> {
+    const response = await api.post<CardInvoice>(`/api/cards/${cardId}/invoices/${invoiceId}/pay`)
+    return response.data
   }
 }
 

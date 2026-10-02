@@ -8,6 +8,7 @@ import com.finflow.financeservice.mapper.CardMapper;
 import com.finflow.financeservice.model.Card;
 import com.finflow.financeservice.repository.CardRepository;
 import com.finflow.financeservice.repository.TransactionRepository;
+import com.finflow.financeservice.repository.CardInvoiceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -24,6 +25,7 @@ public class CardService {
 
     private final CardRepository cardRepository;
     private final TransactionRepository transactionRepository;
+    private final CardInvoiceRepository cardInvoiceRepository;
     private final CardMapper cardMapper;
 
     @Transactional
@@ -99,7 +101,12 @@ public class CardService {
     }
 
     private CardResponseDTO mapToResponseDTO(Card card) {
-        BigDecimal used = transactionRepository.sumExpenseByCardId(card.getId());
+        BigDecimal totalExpenses = transactionRepository.sumExpenseByCardId(card.getId());
+        BigDecimal paidInvoicesSum = cardInvoiceRepository.sumPaidInvoicesByCardId(card.getId());
+        BigDecimal used = totalExpenses.subtract(paidInvoicesSum);
+        if (used.compareTo(BigDecimal.ZERO) < 0) {
+            used = BigDecimal.ZERO;
+        }
         BigDecimal available = card.getCreditLimit().subtract(used);
         return cardMapper.toResponseDTO(card, used, available);
     }

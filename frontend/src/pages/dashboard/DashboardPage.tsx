@@ -363,44 +363,50 @@ export default function DashboardPage() {
     )
   }
 
-  // 3. Expenses by Category Chart: Horizontal high-density progress lines (Controle de Gastos)
+  // 3. Expenses/Income by Category Chart: Horizontal high-density progress lines (Controle de Gastos)
   const renderExpensesCategoryChart = () => {
-    if (!dashboard || dashboard.expenseByCategory.length === 0) {
+    if (!dashboard) return null
+
+    const isIncomeView = selectedType === 'INCOME'
+    const items = isIncomeView ? dashboard.incomeByCategory : dashboard.expenseByCategory
+    const totalValue = (isIncomeView ? dashboard.totalIncome : dashboard.totalExpense) || 1
+
+    if (items.length === 0) {
       return (
         <div className="py-16 flex flex-col items-center justify-center text-slate-400 gap-2">
           <FolderMinus className="w-8 h-8" />
-          <p className="text-xs font-semibold">Sem despesas registradas neste período.</p>
+          <p className="text-xs font-semibold">Sem lançamentos registrados neste período.</p>
         </div>
       )
     }
 
-    const totalExpense = dashboard.totalExpense || 1
-
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Participação no Total de Gastos</h4>
-          <span className="text-[10px] text-slate-400 font-bold bg-slate-100 px-2 py-0.5 rounded font-mono">
-            Total: {formatCurrency(totalExpense)}
+          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+            {isIncomeView ? 'Participação no Total de Entradas' : 'Participação no Total de Gastos'}
+          </h4>
+          <span className="text-[10px] text-slate-400 font-bold bg-slate-100 dark:bg-slate-900 px-2 py-0.5 rounded font-mono">
+            Total: {formatCurrency(totalValue)}
           </span>
         </div>
         <div className="space-y-4 max-h-[250px] overflow-y-auto pr-1">
-          {dashboard.expenseByCategory.map((item) => {
-            const percent = Math.min(100, Math.round((item.total / totalExpense) * 100))
+          {items.map((item) => {
+            const percent = Math.min(100, Math.round((item.total / totalValue) * 100))
 
             return (
               <div key={item.categoryId} className="space-y-1">
                 <div className="flex items-center justify-between text-xs font-medium">
                   <div className="flex items-center gap-1.5 truncate">
-                    <span className="text-slate-700 font-bold truncate">{item.categoryName}</span>
+                    <span className="text-slate-700 dark:text-slate-300 font-bold truncate">{item.categoryName}</span>
                   </div>
                   <div className="flex items-center gap-2 font-mono tabular-nums text-slate-500 font-semibold shrink-0">
                     <span>{formatCurrency(item.total)}</span>
                     <span className="text-slate-300">·</span>
-                    <span className="font-bold text-slate-700">{percent}%</span>
+                    <span className="font-bold text-slate-700 dark:text-slate-300">{percent}%</span>
                   </div>
                 </div>
-                <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                   <div 
                     className="h-full bg-indigo-600 rounded-full transition-all duration-500"
                     style={{ width: `${percent}%` }}
@@ -416,7 +422,13 @@ export default function DashboardPage() {
 
   // 4. Distribution Chart: Premium SVG Donut/Rosca Chart for Category Totals
   const renderDistributionChart = () => {
-    if (!dashboard || dashboard.expenseByCategory.length === 0) {
+    if (!dashboard) return null
+
+    const isIncomeView = selectedType === 'INCOME'
+    const sourceItems = isIncomeView ? dashboard.incomeByCategory : dashboard.expenseByCategory
+    const totalValue = (isIncomeView ? dashboard.totalIncome : dashboard.totalExpense) || 1
+
+    if (sourceItems.length === 0) {
       return (
         <div className="py-16 flex flex-col items-center justify-center text-slate-400 gap-2">
           <FolderMinus className="w-8 h-8" />
@@ -425,8 +437,7 @@ export default function DashboardPage() {
       )
     }
 
-    const items = dashboard.expenseByCategory.slice(0, 6) // Show top 6 categories
-    const totalExpense = dashboard.totalExpense || 1
+    const items = sourceItems.slice(0, 6) // Show top 6 categories
     const size = 200
     const center = size / 2
     const r = 60
@@ -462,7 +473,7 @@ export default function DashboardPage() {
 
             {/* Segment slices */}
             {items.map((item, idx) => {
-              const percent = item.total / totalExpense
+              const percent = item.total / totalValue
               const strokeDashoffset = circumference - percent * circumference
               const rotationAngle = -90 + (accumulatedPercent * 360)
               accumulatedPercent += percent
@@ -490,15 +501,17 @@ export default function DashboardPage() {
           </svg>
           {/* Central absolute hole content */}
           <div className="absolute inset-0 flex flex-col items-center justify-center select-none pointer-events-none">
-            <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400">Total</span>
-            <span className="text-sm font-extrabold text-slate-800 font-mono mt-0.5">{formatCurrency(dashboard.totalExpense)}</span>
+            <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+              {isIncomeView ? 'Receitas' : 'Despesas'}
+            </span>
+            <span className="text-sm font-extrabold text-slate-800 dark:text-white font-mono mt-0.5">{formatCurrency(totalValue)}</span>
           </div>
         </div>
 
         {/* Legend */}
         <div className="space-y-2.5 text-xs max-w-[200px] w-full">
           {items.map((item, idx) => {
-            const percent = Math.round((item.total / totalExpense) * 100)
+            const percent = Math.round((item.total / totalValue) * 100)
             const bgColors = ['bg-indigo-600', 'bg-red-500', 'bg-amber-500', 'bg-emerald-500', 'bg-pink-500', 'bg-cyan-500']
             const colorClass = bgColors[idx % bgColors.length]
 
@@ -506,7 +519,7 @@ export default function DashboardPage() {
               <div key={item.categoryId} className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 truncate">
                   <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${colorClass}`} />
-                  <span className="font-bold text-slate-700 truncate">{item.categoryName}</span>
+                  <span className="font-bold text-slate-700 dark:text-slate-350 truncate">{item.categoryName}</span>
                 </div>
                 <div className="flex items-center gap-1 font-mono text-[11px] font-bold text-slate-400 shrink-0">
                   <span>({percent}%)</span>

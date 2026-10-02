@@ -563,14 +563,24 @@ export default function GoalsPage() {
         <ConfirmModal
           isOpen={!!deleteId}
           title="Excluir Objetivo Financeiro"
-          message="Tem certeza que deseja excluir esta meta? Seu histórico de economia associado a ela continuará existindo, mas o objetivo de planejamento será removido."
+          message={(() => {
+            const goal = goals.find(g => g.id === deleteId)
+            if (goal && goal.currentAmount > 0) {
+              return `Ao excluir esta meta, o dinheiro acumulado nela (${formatCurrency(goal.currentAmount)}) será devolvido para o dinheiro disponível.`
+            }
+            return "Tem certeza que deseja excluir esta meta? O objetivo de planejamento será removido de seu painel."
+          })()}
           onConfirm={async () => {
             if (deleteId) {
               setError('')
               setSuccess('')
-              await goalService.delete(deleteId)
-              setSuccess('Objetivo financeiro excluído com sucesso!')
-              fetchGoals()
+              try {
+                await goalService.delete(deleteId)
+                setSuccess('Objetivo financeiro excluído e saldo devolvido com sucesso!')
+                fetchGoals()
+              } catch (err: any) {
+                setError('Erro ao excluir objetivo.')
+              }
             }
           }}
           onClose={() => setDeleteId(null)}

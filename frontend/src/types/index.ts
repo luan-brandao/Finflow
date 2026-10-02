@@ -161,3 +161,16 @@ export interface PaginatedUsers {
   first: boolean;
   empty: boolean;
 }
+
+export interface CardInvoice {
+  id: string | null;
+  cardId: string;
+  userId: string;
+  year: number;
+  month: number;
+  amount: number;
+  status: 'OPEN' | 'CLOSED' | 'PAID';
+  dueDate: string;
+  closedAt?: string;
+  paidAt?: string;
+}

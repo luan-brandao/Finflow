@@ -186,10 +186,34 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
             """)
     BigDecimal sumExpenseByCardId(@Param("cardId") UUID cardId);
 
+    @Query("""
+            SELECT COALESCE(SUM(t.amount), 0)
+            FROM Transaction t
+            WHERE t.cardId = :cardId
+              AND t.type = com.finflow.financeservice.model.TransactionType.EXPENSE
+              AND EXTRACT(YEAR FROM t.date) = :year
+              AND EXTRACT(MONTH FROM t.date) = :month
+            """)
+    BigDecimal sumExpenseByCardIdAndYearAndMonth(
+            @Param("cardId") UUID cardId,
+            @Param("year") int year,
+            @Param("month") int month
+    );
+
+    @Query("""
+            SELECT DISTINCT EXTRACT(YEAR FROM t.date) AS y, EXTRACT(MONTH FROM t.date) AS m
+            FROM Transaction t
+            WHERE t.cardId = :cardId
+              AND t.type = com.finflow.financeservice.model.TransactionType.EXPENSE
+            """)
+    List<Object[]> findDistinctYearsAndMonthsByCardId(@Param("cardId") UUID cardId);
+
     @Query("SELECT t FROM Transaction t WHERE t.userId = :userId AND t.date BETWEEN :startDate AND :endDate ORDER BY t.date DESC, t.createdAt DESC")
     List<Transaction> findByUserIdAndPeriod(
             @Param("userId") UUID userId,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate
     );
+
+    List<Transaction> findByGoalId(UUID goalId);
 }

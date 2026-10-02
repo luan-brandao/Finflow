@@ -32,6 +32,11 @@ export default function CardsPage() {
   const [name, setName] = useState('')
   const [limit, setLimit] = useState('')
 
+  // Invoice management states
+  const [selectedCard, setSelectedCard] = useState<Card | null>(null)
+  const [invoices, setInvoices] = useState<any[]>([])
+  const [invoicesLoading, setInvoicesLoading] = useState(false)
+
   // Load cards from API
   const loadCards = async () => {
     setLoading(true)
@@ -39,11 +44,80 @@ export default function CardsPage() {
     try {
       const data = await cardService.findAll()
       setCards(data)
+      if (data.length > 0) {
+        // Keep selected card reference updated or select the first one by default
+        if (selectedCard) {
+          const updated = data.find(c => c.id === selectedCard.id)
+          if (updated) {
+            setSelectedCard(updated)
+            // Refresh its invoices too
+            const invs = await cardService.getInvoices(updated.id)
+            setInvoices(invs)
+          } else {
+            setSelectedCard(data[0])
+            const invs = await cardService.getInvoices(data[0].id)
+            setInvoices(invs)
+          }
+        } else {
+          setSelectedCard(data[0])
+          const invs = await cardService.getInvoices(data[0].id)
+          setInvoices(invs)
+        }
+      } else {
+        setSelectedCard(null)
+        setInvoices([])
+      }
     } catch (err: any) {
       console.error(err)
       setError('Erro ao carregar seus cartões de crédito.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchInvoices = async (cardId: string) => {
+    setInvoicesLoading(true)
+    try {
+      const data = await cardService.getInvoices(cardId)
+      setInvoices(data)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setInvoicesLoading(false)
+    }
+  }
+
+  const handleCloseInvoice = async (cardId: string, year: number, month: number) => {
+    setError('')
+    setSuccess('')
+    try {
+      await cardService.closeInvoice(cardId, year, month)
+      setSuccess('Fatura fechada com sucesso! O estado para pagamento futuro foi preparado.')
+      await fetchInvoices(cardId)
+      const data = await cardService.findAll()
+      setCards(data)
+      const updated = data.find(c => c.id === cardId)
+      if (updated) setSelectedCard(updated)
+    } catch (err: any) {
+      console.error(err)
+      setError(err.response?.data?.message || 'Erro ao fechar a fatura.')
+    }
+  }
+
+  const handlePayInvoice = async (cardId: string, invoiceId: string) => {
+    setError('')
+    setSuccess('')
+    try {
+      await cardService.payInvoice(cardId, invoiceId)
+      setSuccess('Fatura paga com sucesso! O limite de crédito foi restabelecido.')
+      await fetchInvoices(cardId)
+      const data = await cardService.findAll()
+      setCards(data)
+      const updated = data.find(c => c.id === cardId)
+      if (updated) setSelectedCard(updated)
+    } catch (err: any) {
+      console.error(err)
+      setError(err.response?.data?.message || 'Erro ao realizar pagamento da fatura.')
     }
   }
 
@@ -262,6 +336,8 @@ export default function CardsPage() {
                 ? Math.min(100, Math.round((card.used / card.limit) * 100)) 
                 : 0
 
+              const isSelected = selectedCard?.id === card.id
+
               // Categorize card colors organically for premium feels
               const colors = [
                 'from-indigo-900 to-indigo-950 border-indigo-950 text-white',
@@ -273,7 +349,13 @@ export default function CardsPage() {
               return (
                 <div 
                   key={card.id} 
-                  className={`bg-gradient-to-br ${bgClass} border rounded-2xl p-6 shadow-sm flex flex-col justify-between h-48 hover:shadow-md transition-all relative overflow-hidden group`}
+                  onClick={() => {
+                    setSelectedCard(card)
+                    fetchInvoices(card.id)
+                  }}
+                  className={`bg-gradient-to-br ${bgClass} border rounded-2xl p-6 shadow-sm flex flex-col justify-between h-48 hover:shadow-md transition-all relative overflow-hidden group cursor-pointer ${
+                    isSelected ? 'ring-4 ring-indigo-500 ring-offset-2 dark:ring-offset-[#0B1220] scale-[1.02]' : 'hover:scale-[1.01]'
+                  }`}
                 >
                   {/* Visual overlay chip ornament */}
                   <div className="absolute right-6 top-6 w-10 h-8 bg-white/10 border border-white/10 rounded-lg select-none pointer-events-none flex items-center justify-center">
@@ -316,14 +398,20 @@ export default function CardsPage() {
                   {/* Actions overlay hover bar */}
                   <div className="absolute top-4 right-4 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-white/10 backdrop-blur-md rounded-lg p-1 select-none">
                     <button
-                      onClick={() => handleOpenEdit(card)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleOpenEdit(card)
+                      }}
                       className="p-1.5 text-white/80 hover:text-white rounded-md hover:bg-white/10 cursor-pointer"
                       title="Editar limites"
                     >
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
                     <button
-                      onClick={() => setDeleteId(card.id)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setDeleteId(card.id)
+                      }}
                       className="p-1.5 text-red-300 hover:text-red-450 rounded-md hover:bg-white/10 cursor-pointer"
                       title="Excluir"
                     >
@@ -334,6 +422,126 @@ export default function CardsPage() {
                 </div>
               )
             })}
+          </div>
+        )}
+
+        {/* Selected Card Invoices History Block */}
+        {selectedCard && (
+          <div className="bg-white dark:bg-[#1E293B] border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-6 sm:p-8 shadow-sm space-y-6 animate-fade-in">
+            <div className="border-b border-slate-100 dark:border-slate-800/60 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">Faturas e Histórico Mensal</h3>
+                <p className="text-xs text-slate-400 dark:text-slate-500 font-medium mt-1">Exibindo faturas do cartão: <span className="font-bold text-slate-800 dark:text-slate-200">{selectedCard.name}</span></p>
+              </div>
+              <span className="text-[10px] text-slate-400 font-bold bg-slate-100 dark:bg-slate-900 px-3 py-1 rounded-lg font-mono shrink-0 self-start sm:self-center uppercase tracking-wider">
+                Controle de Ciclo
+              </span>
+            </div>
+
+            {invoicesLoading ? (
+              <div className="py-12 flex flex-col items-center justify-center gap-2">
+                <Loader2 className="w-6 h-6 text-indigo-600 animate-spin" />
+                <p className="text-xs text-slate-400">Consultando histórico de faturas...</p>
+              </div>
+            ) : invoices.length === 0 ? (
+              <div className="py-12 text-center text-slate-400">
+                <p className="text-xs">Nenhum histórico de fatura disponível.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-100 dark:border-slate-800/60 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                      <th className="py-3 px-4">Período</th>
+                      <th className="py-3 px-4">Estado da Fatura</th>
+                      <th className="py-3 px-4">Vencimento</th>
+                      <th className="py-3 px-4 text-right">Valor da Fatura</th>
+                      <th className="py-3 px-4 text-center">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/40 text-xs">
+                    {invoices.map((inv, idx) => {
+                      const monthNames = [
+                        'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+                        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+                      ]
+                      const periodText = `${monthNames[inv.month - 1]} / ${inv.year}`
+
+                      return (
+                        <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/10">
+                          {/* Period */}
+                          <td className="py-4 px-4 font-bold text-slate-800 dark:text-slate-200">
+                            {periodText}
+                          </td>
+
+                          {/* Status */}
+                          <td className="py-4 px-4">
+                            {inv.status === 'OPEN' && (
+                              <span className="flex items-center gap-1.5 font-bold text-xs text-blue-600 dark:text-blue-400">
+                                <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                                <span>Aberta (Mês Atual)</span>
+                              </span>
+                            )}
+                            {inv.status === 'CLOSED' && (
+                              <div className="space-y-1">
+                                <span className="flex items-center gap-1.5 font-bold text-xs text-amber-600 dark:text-amber-500">
+                                  <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+                                  <span>Fechada (Pendente)</span>
+                                </span>
+                                <p className="text-[10px] text-amber-800 dark:text-amber-400 bg-amber-50/80 dark:bg-amber-950/25 border border-amber-100/50 dark:border-amber-900/15 p-2 rounded-lg font-semibold max-w-xs leading-normal">
+                                  Sua fatura está fechada e precisa ser paga.
+                                </p>
+                              </div>
+                            )}
+                            {inv.status === 'PAID' && (
+                              <span className="flex items-center gap-1.5 font-bold text-xs text-emerald-600 dark:text-emerald-400">
+                                <span className="w-2 h-2 bg-emerald-500 rounded-full" />
+                                <span>Paga</span>
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Due Date */}
+                          <td className="py-4 px-4 font-semibold text-slate-500 dark:text-slate-400">
+                            {new Date(inv.dueDate + 'T12:00:00').toLocaleDateString('pt-BR')}
+                          </td>
+
+                          {/* Amount */}
+                          <td className="py-4 px-4 font-mono font-bold text-right text-slate-700 dark:text-slate-350">
+                            {formatCurrency(inv.amount)}
+                          </td>
+
+                          {/* Actions */}
+                          <td className="py-4 px-4 text-center">
+                            {inv.status === 'OPEN' && (
+                              <button
+                                onClick={() => handleCloseInvoice(inv.cardId, inv.year, inv.month)}
+                                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-bold rounded-lg text-[10px] tracking-wide uppercase transition-all cursor-pointer shadow-sm shadow-amber-500/10"
+                              >
+                                Fechar Fatura
+                              </button>
+                            )}
+                            {inv.status === 'CLOSED' && (
+                              <button
+                                onClick={() => handlePayInvoice(inv.cardId, inv.id)}
+                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold rounded-lg text-[10px] tracking-wide uppercase transition-all cursor-pointer shadow-sm shadow-emerald-500/10 animate-pulse"
+                              >
+                                Pagar Fatura
+                              </button>
+                            )}
+                            {inv.status === 'PAID' && (
+                              <span className="text-[10px] uppercase font-bold text-emerald-500/90 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100/50 dark:border-emerald-900/10 px-2.5 py-1 rounded-md">
+                                Liquidada
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 
