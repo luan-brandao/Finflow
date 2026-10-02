@@ -28,6 +28,9 @@ public class Card {
     @Column(name = "credit_limit", nullable = false, precision = 15, scale = 2)
     private BigDecimal creditLimit;
 
+    @Column(name = "due_day", nullable = false)
+    private int dueDay;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

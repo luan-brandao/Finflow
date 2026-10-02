@@ -215,7 +215,7 @@ public class DashboardService {
                 .map(com.finflow.financeservice.model.MonthlyIncome::getAmount)
                 .orElse(BigDecimal.ZERO);
 
-        BigDecimal availableValue = monthlyIncome.subtract(totalExpense);
+        BigDecimal availableValue = monthlyIncome.add(totalIncome).subtract(totalExpense);
 
         BigDecimal committedPercentage = BigDecimal.ZERO;
         if (monthlyIncome.compareTo(BigDecimal.ZERO) > 0) {

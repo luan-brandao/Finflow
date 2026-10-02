@@ -9,6 +9,7 @@ public record CardResponseDTO(
         UUID userId,
         String name,
         BigDecimal creditLimit,
+        int dueDay,
         BigDecimal used,
         BigDecimal available,
         LocalDateTime createdAt,

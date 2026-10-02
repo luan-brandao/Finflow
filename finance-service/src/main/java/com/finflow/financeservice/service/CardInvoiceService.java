@@ -67,11 +67,7 @@ public class CardInvoiceService {
                 list.add(mapToDTO(saved));
             } else {
                 BigDecimal amount = transactionRepository.sumExpenseByCardIdAndYearAndMonth(cardId, year, month);
-                LocalDate dueDate = LocalDate.of(year, month, 10);
-                // Due date is usually 10th of the next month
-                try {
-                    dueDate = dueDate.plusMonths(1);
-                } catch (Exception ignored) {}
+                LocalDate dueDate = calculateDueDate(year, month, card.getDueDay());
 
                 list.add(new CardInvoiceResponseDTO(
                         null,
@@ -102,7 +98,7 @@ public class CardInvoiceService {
     @Transactional
     public CardInvoiceResponseDTO closeInvoice(UUID cardId, int year, int month) {
         UUID userId = getAuthenticatedUserId();
-        verifyCardAccess(cardId, userId);
+        Card card = verifyCardAccess(cardId, userId);
 
         Optional<CardInvoice> existing = cardInvoiceRepository.findByCardIdAndYearAndMonth(cardId, year, month);
         if (existing.isPresent()) {
@@ -119,12 +115,7 @@ public class CardInvoiceService {
         invoice.setAmount(amount);
         invoice.setStatus("CLOSED");
         invoice.setClosedAt(LocalDateTime.now());
-        
-        LocalDate dueDate = LocalDate.of(year, month, 10);
-        try {
-            dueDate = dueDate.plusMonths(1);
-        } catch (Exception ignored) {}
-        invoice.setDueDate(dueDate);
+        invoice.setDueDate(calculateDueDate(year, month, card.getDueDay()));
 
         CardInvoice saved = cardInvoiceRepository.save(invoice);
         return mapToDTO(saved);
@@ -160,6 +151,14 @@ public class CardInvoiceService {
             throw new AccessDeniedException("Você não tem acesso a este cartão de crédito.");
         }
         return card;
+    }
+
+    private LocalDate calculateDueDate(int year, int month, int dueDay) {
+        // Go to next month safely (handles wrap-around at end of year)
+        LocalDate nextMonth = LocalDate.of(year, month, 1).plusMonths(1);
+        int maxDay = nextMonth.lengthOfMonth();
+        int day = Math.min(dueDay, maxDay);
+        return LocalDate.of(nextMonth.getYear(), nextMonth.getMonthValue(), day);
     }
 
     private CardInvoiceResponseDTO mapToDTO(CardInvoice ci) {

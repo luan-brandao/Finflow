@@ -129,6 +129,7 @@ export interface Card {
   name: string;
   creditLimit?: number;
   limit: number;
+  dueDay: number;
   used: number;
   available?: number;
   createdAt?: string;

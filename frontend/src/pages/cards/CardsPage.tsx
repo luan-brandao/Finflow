@@ -31,6 +31,7 @@ export default function CardsPage() {
   
   const [name, setName] = useState('')
   const [limit, setLimit] = useState('')
+  const [dueDay, setDueDay] = useState('10')
 
   // Invoice management states
   const [selectedCard, setSelectedCard] = useState<Card | null>(null)
@@ -129,6 +130,7 @@ export default function CardsPage() {
     setEditingId(null)
     setName('')
     setLimit('')
+    setDueDay('10')
     setIsFormOpen(true)
     setError('')
     setSuccess('')
@@ -138,6 +140,7 @@ export default function CardsPage() {
     setEditingId(card.id)
     setName(card.name)
     setLimit(card.limit.toString())
+    setDueDay(card.dueDay.toString())
     setIsFormOpen(true)
     setError('')
     setSuccess('')
@@ -161,6 +164,12 @@ export default function CardsPage() {
       return
     }
 
+    const numericDueDay = parseInt(dueDay)
+    if (isNaN(numericDueDay) || numericDueDay < 1 || numericDueDay > 31) {
+      setError('O dia de vencimento da fatura deve ser entre 1 e 31.')
+      return
+    }
+
     setError('')
     setSuccess('')
     setIsSubmitting(true)
@@ -169,13 +178,15 @@ export default function CardsPage() {
       if (editingId) {
         await cardService.update(editingId, {
           name: name.trim(),
-          creditLimit: numericLimit
+          creditLimit: numericLimit,
+          dueDay: numericDueDay
         })
         setSuccess('Cartão de crédito atualizado com sucesso!')
       } else {
         await cardService.create({
           name: name.trim(),
-          creditLimit: numericLimit
+          creditLimit: numericLimit,
+          dueDay: numericDueDay
         })
         setSuccess('Novo cartão de crédito cadastrado com sucesso!')
       }
@@ -261,7 +272,7 @@ export default function CardsPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
               
               {/* Card Name */}
               <div className="space-y-1.5">
@@ -292,8 +303,23 @@ export default function CardsPage() {
                 />
               </div>
 
+              {/* Due Day */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Dia de Vencimento</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="31"
+                  required
+                  placeholder="Ex: 10"
+                  value={dueDay}
+                  onChange={(e) => setDueDay(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 focus:border-indigo-500 rounded-xl outline-none transition-all font-mono font-bold text-slate-700 dark:text-slate-200"
+                />
+              </div>
+
               {/* Actions */}
-              <div className="sm:col-span-2 flex justify-end gap-3 pt-3">
+              <div className="sm:col-span-3 flex justify-end gap-3 pt-3">
                 <button
                   type="button"
                   onClick={handleCloseForm}

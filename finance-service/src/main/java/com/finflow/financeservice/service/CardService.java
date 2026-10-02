@@ -40,6 +40,7 @@ public class CardService {
         card.setUserId(userId);
         card.setName(request.name().trim());
         card.setCreditLimit(request.creditLimit());
+        card.setDueDay(request.dueDay());
 
         Card savedCard = cardRepository.save(card);
 
@@ -84,6 +85,7 @@ public class CardService {
 
         card.setName(request.name().trim());
         card.setCreditLimit(request.creditLimit());
+        card.setDueDay(request.dueDay());
 
         Card updatedCard = cardRepository.save(card);
 

@@ -18,7 +18,7 @@ export const cardService = {
     }
   },
 
-  async create(card: { name: string; creditLimit: number }): Promise<Card> {
+  async create(card: { name: string; creditLimit: number; dueDay: number }): Promise<Card> {
     const response = await api.post<any>('/api/cards', card)
     return {
       ...response.data,
@@ -26,7 +26,7 @@ export const cardService = {
     }
   },
 
-  async update(id: string, card: { name: string; creditLimit: number }): Promise<Card> {
+  async update(id: string, card: { name: string; creditLimit: number; dueDay: number }): Promise<Card> {
     const response = await api.put<any>(`/api/cards/${id}`, card)
     return {
       ...response.data,
