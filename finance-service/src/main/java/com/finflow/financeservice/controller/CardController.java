@@ -48,4 +48,12 @@ public class CardController {
         cardService.delete(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/{id}/pay-advance")
+    public ResponseEntity<CardResponseDTO> payAdvance(
+            @PathVariable UUID id,
+            @RequestParam java.math.BigDecimal amount
+    ) {
+        return ResponseEntity.ok(cardService.payAdvance(id, amount));
+    }
 }

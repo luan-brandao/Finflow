@@ -35,6 +35,12 @@ public class Goal {
     @Column(name = "target_date", nullable = false)
     private LocalDate targetDate;
 
+    @Column(name = "reached_notified", nullable = false)
+    private boolean reachedNotified = false;
+
+    @Column(name = "deadline_notified", nullable = false)
+    private boolean deadlineNotified = false;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

@@ -41,6 +41,7 @@ public class CardService {
         card.setName(request.name().trim());
         card.setCreditLimit(request.creditLimit());
         card.setDueDay(request.dueDay());
+        card.setPrepaidAmount(BigDecimal.ZERO);
 
         Card savedCard = cardRepository.save(card);
 
@@ -102,10 +103,27 @@ public class CardService {
         cardRepository.delete(card);
     }
 
+    @Transactional
+    public CardResponseDTO payAdvance(UUID cardId, BigDecimal amount) {
+        UUID userId = getAuthenticatedUserId();
+        Card card = cardRepository.findByIdAndUserId(cardId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Cartão não encontrado."));
+
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("O valor do pagamento antecipado deve ser maior que zero.");
+        }
+
+        BigDecimal currentPrepaid = card.getPrepaidAmount() != null ? card.getPrepaidAmount() : BigDecimal.ZERO;
+        card.setPrepaidAmount(currentPrepaid.add(amount));
+        Card savedCard = cardRepository.save(card);
+        return mapToResponseDTO(savedCard);
+    }
+
     private CardResponseDTO mapToResponseDTO(Card card) {
         BigDecimal totalExpenses = transactionRepository.sumExpenseByCardId(card.getId());
         BigDecimal paidInvoicesSum = cardInvoiceRepository.sumPaidInvoicesByCardId(card.getId());
-        BigDecimal used = totalExpenses.subtract(paidInvoicesSum);
+        BigDecimal prepaid = card.getPrepaidAmount() != null ? card.getPrepaidAmount() : BigDecimal.ZERO;
+        BigDecimal used = totalExpenses.subtract(paidInvoicesSum).subtract(prepaid);
         if (used.compareTo(BigDecimal.ZERO) < 0) {
             used = BigDecimal.ZERO;
         }

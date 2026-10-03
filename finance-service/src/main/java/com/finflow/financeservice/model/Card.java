@@ -31,6 +31,9 @@ public class Card {
     @Column(name = "due_day", nullable = false)
     private int dueDay;
 
+    @Column(name = "prepaid_amount", nullable = false, precision = 15, scale = 2)
+    private BigDecimal prepaidAmount = BigDecimal.ZERO;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

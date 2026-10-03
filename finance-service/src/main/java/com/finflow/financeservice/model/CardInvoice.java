@@ -41,6 +41,9 @@ public class CardInvoice {
     @Column(name = "due_date", nullable = false)
     private LocalDate dueDate;
 
+    @Column(name = "overdue_notified", nullable = false)
+    private boolean overdueNotified = false;
+
     @Column(name = "closed_at")
     private LocalDateTime closedAt;
 

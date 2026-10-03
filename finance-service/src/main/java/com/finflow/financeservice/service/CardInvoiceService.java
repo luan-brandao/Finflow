@@ -26,6 +26,7 @@ public class CardInvoiceService {
     private final CardRepository cardRepository;
     private final CardInvoiceRepository cardInvoiceRepository;
     private final TransactionRepository transactionRepository;
+    private final EventPublisherService eventPublisherService;
 
     @Transactional(readOnly = true)
     public List<CardInvoiceResponseDTO> getInvoices(UUID cardId) {
@@ -106,18 +107,37 @@ public class CardInvoiceService {
         }
 
         BigDecimal amount = transactionRepository.sumExpenseByCardIdAndYearAndMonth(cardId, year, month);
+        BigDecimal prepaid = card.getPrepaidAmount() != null ? card.getPrepaidAmount() : BigDecimal.ZERO;
+        BigDecimal finalAmount = amount.subtract(prepaid);
+        if (finalAmount.compareTo(BigDecimal.ZERO) < 0) {
+            finalAmount = BigDecimal.ZERO;
+        }
         
         CardInvoice invoice = new CardInvoice();
         invoice.setCardId(cardId);
         invoice.setUserId(userId);
         invoice.setYear(year);
         invoice.setMonth(month);
-        invoice.setAmount(amount);
+        invoice.setAmount(finalAmount);
         invoice.setStatus("CLOSED");
         invoice.setClosedAt(LocalDateTime.now());
         invoice.setDueDate(calculateDueDate(year, month, card.getDueDay()));
 
         CardInvoice saved = cardInvoiceRepository.save(invoice);
+
+        card.setPrepaidAmount(BigDecimal.ZERO);
+        cardRepository.save(card);
+
+        // Publish event
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("cardId", cardId);
+        payload.put("cardName", card.getName());
+        payload.put("year", year);
+        payload.put("month", month);
+        payload.put("amount", finalAmount);
+        payload.put("dueDate", invoice.getDueDate().toString());
+        eventPublisherService.publishEvent("finance.invoice.closed", "INVOICE_CLOSED", userId, payload);
+
         return mapToDTO(saved);
     }
 

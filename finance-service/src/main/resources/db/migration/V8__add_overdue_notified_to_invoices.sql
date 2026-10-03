@@ -1,0 +1,1 @@
+ALTER TABLE card_invoices ADD COLUMN overdue_notified BOOLEAN NOT NULL DEFAULT FALSE;

@@ -29,6 +29,8 @@ public class TransactionService {
     private final CategoryRepository categoryRepository;
     private final CardRepository cardRepository;
     private final GoalRepository goalRepository;
+    private final EventPublisherService eventPublisherService;
+    private final com.finflow.financeservice.repository.CategoryBudgetRepository categoryBudgetRepository;
 
     @Transactional
     public TransactionResponseDTO create(TransactionRequestDTO request) {
@@ -55,6 +57,10 @@ public class TransactionService {
                 transactionRepository.save(transaction);
 
         updateGoalAmountOnCreate(request.goalId(), request.amount(), request.type());
+
+        if (request.type() == com.finflow.financeservice.model.TransactionType.EXPENSE) {
+            checkCategoryBudgetLimits(userId, request.categoryId(), request.date());
+        }
 
         return transactionMapper.toResponseDTO(savedTransaction);
     }
@@ -113,6 +119,10 @@ public class TransactionService {
 
         updateGoalAmountOnDelete(oldGoalId, oldAmount, oldType);
         updateGoalAmountOnCreate(request.goalId(), request.amount(), request.type());
+
+        if (request.type() == com.finflow.financeservice.model.TransactionType.EXPENSE) {
+            checkCategoryBudgetLimits(userId, request.categoryId(), request.date());
+        }
 
         return transactionMapper.toResponseDTO(updatedTransaction);
     }
@@ -288,6 +298,23 @@ public class TransactionService {
             } else {
                 goal.setCurrentAmount(goal.getCurrentAmount().subtract(amount));
             }
+
+            if (goal.getCurrentAmount().compareTo(goal.getTargetAmount()) >= 0 && !goal.isReachedNotified()) {
+                boolean early = !java.time.LocalDate.now().isAfter(goal.getTargetDate());
+                String eventType = early ? "GOAL_REACHED_EARLY" : "GOAL_REACHED";
+                String routingKey = early ? "finance.goal.reached.early" : "finance.goal.reached";
+
+                java.util.Map<String, Object> payload = new java.util.HashMap<>();
+                payload.put("goalId", goal.getId());
+                payload.put("goalTitle", goal.getTitle());
+                payload.put("currentAmount", goal.getCurrentAmount());
+                payload.put("targetAmount", goal.getTargetAmount());
+                payload.put("targetDate", goal.getTargetDate().toString());
+
+                eventPublisherService.publishEvent(routingKey, eventType, goal.getUserId(), payload);
+                goal.setReachedNotified(true);
+            }
+
             goalRepository.save(goal);
         }
     }
@@ -302,6 +329,54 @@ public class TransactionService {
                 goal.setCurrentAmount(goal.getCurrentAmount().add(amount));
             }
             goalRepository.save(goal);
+        }
+    }
+
+    private void checkCategoryBudgetLimits(UUID userId, UUID categoryId, java.time.LocalDate date) {
+        if (categoryId == null) return;
+        var budgetOpt = categoryBudgetRepository.findByCategoryId(categoryId);
+        if (budgetOpt.isEmpty()) return;
+        var budget = budgetOpt.get();
+
+        java.time.LocalDate startOfMonth = date.withDayOfMonth(1);
+        java.time.LocalDate endOfMonth = date.withDayOfMonth(date.lengthOfMonth());
+
+        List<com.finflow.financeservice.model.Transaction> txs = transactionRepository.findByUserIdAndPeriod(userId, startOfMonth, endOfMonth);
+        java.math.BigDecimal total = txs.stream()
+                .filter(t -> categoryId.equals(t.getCategoryId()))
+                .filter(t -> t.getType() == com.finflow.financeservice.model.TransactionType.EXPENSE)
+                .map(com.finflow.financeservice.model.Transaction::getAmount)
+                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+
+        java.math.BigDecimal limit = budget.getLimitAmount();
+        if (limit.compareTo(java.math.BigDecimal.ZERO) <= 0) return;
+
+        java.math.BigDecimal ratio = total.divide(limit, 4, java.math.RoundingMode.HALF_UP);
+        
+        var category = categoryRepository.findById(categoryId).orElse(null);
+        String categoryName = category != null ? category.getName() : "Categoria";
+
+        java.util.Map<String, Object> payload = new java.util.HashMap<>();
+        payload.put("categoryId", categoryId);
+        payload.put("categoryName", categoryName);
+        payload.put("budgetLimit", limit);
+        payload.put("currentUsage", total);
+
+        if (total.compareTo(limit) > 0 && !budget.isNotifiedOver()) {
+            payload.put("percentage", ratio.multiply(java.math.BigDecimal.valueOf(100)).intValue());
+            eventPublisherService.publishEvent("finance.budget.threshold", "BUDGET_EXCEEDED", userId, payload);
+            budget.setNotifiedOver(true);
+            categoryBudgetRepository.save(budget);
+        } else if (total.compareTo(limit) == 0 && !budget.isNotified100()) {
+            payload.put("percentage", 100);
+            eventPublisherService.publishEvent("finance.budget.threshold", "BUDGET_PERCENT_100", userId, payload);
+            budget.setNotified100(true);
+            categoryBudgetRepository.save(budget);
+        } else if (ratio.compareTo(java.math.BigDecimal.valueOf(0.80)) >= 0 && total.compareTo(limit) < 0 && !budget.isNotified80()) {
+            payload.put("percentage", ratio.multiply(java.math.BigDecimal.valueOf(100)).intValue());
+            eventPublisherService.publishEvent("finance.budget.threshold", "BUDGET_PERCENT_80", userId, payload);
+            budget.setNotified80(true);
+            categoryBudgetRepository.save(budget);
         }
     }
 }
