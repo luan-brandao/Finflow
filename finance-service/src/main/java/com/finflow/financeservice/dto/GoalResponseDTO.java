@@ -12,6 +12,7 @@ public record GoalResponseDTO(
         BigDecimal targetAmount,
         BigDecimal currentAmount,
         LocalDate targetDate,
+        String status,
         LocalDateTime createdAt
 ) {
 }

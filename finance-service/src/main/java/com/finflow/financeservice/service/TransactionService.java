@@ -40,6 +40,7 @@ public class TransactionService {
         validateCategory(request.categoryId(), userId);
         validateCard(request.cardId(), request.type(), userId);
         validateGoal(request.goalId(), userId);
+        validateGoalWithdrawal(request.goalId(), request.type(), request.amount(), null, userId);
         validateCardLimit(request.cardId(), request.type(), request.amount(), null, userId);
 
         Transaction transaction = new Transaction();
@@ -100,6 +101,7 @@ public class TransactionService {
         validateCategory(request.categoryId(), userId);
         validateCard(request.cardId(), request.type(), userId);
         validateGoal(request.goalId(), userId);
+        validateGoalWithdrawal(request.goalId(), request.type(), request.amount(), id, userId);
         validateCardLimit(request.cardId(), request.type(), request.amount(), id, userId);
 
         UUID oldGoalId = transaction.getGoalId();
@@ -289,6 +291,36 @@ public class TransactionService {
         }
     }
 
+    private void validateGoalWithdrawal(UUID goalId, com.finflow.financeservice.model.TransactionType type, java.math.BigDecimal amount, UUID excludeTransactionId, UUID userId) {
+        if (goalId == null || type != com.finflow.financeservice.model.TransactionType.EXPENSE) {
+            return;
+        }
+        var goal = goalRepository.findById(goalId)
+                .orElseThrow(() -> new ResourceNotFoundException("Meta não encontrada."));
+        if (!goal.getUserId().equals(userId)) {
+            throw new AccessDeniedException("Você não tem acesso a esta meta.");
+        }
+
+        java.math.BigDecimal currentAmount = goal.getCurrentAmount() != null ? goal.getCurrentAmount() : java.math.BigDecimal.ZERO;
+        
+        if (excludeTransactionId != null) {
+            var oldTx = transactionRepository.findByIdAndUserId(excludeTransactionId, userId).orElse(null);
+            if (oldTx != null && goalId.equals(oldTx.getGoalId())) {
+                if (oldTx.getType() == com.finflow.financeservice.model.TransactionType.INCOME) {
+                    currentAmount = currentAmount.subtract(oldTx.getAmount());
+                } else {
+                    currentAmount = currentAmount.add(oldTx.getAmount());
+                }
+            }
+        }
+
+        if (currentAmount.compareTo(amount) < 0) {
+            throw new IllegalArgumentException(
+                "Não é possível retirar este valor. Saldo disponível na meta \"" + goal.getTitle() + "\": R$ " + currentAmount
+            );
+        }
+    }
+
     private void updateGoalAmountOnCreate(UUID goalId, java.math.BigDecimal amount, com.finflow.financeservice.model.TransactionType type) {
         if (goalId == null) return;
         var goal = goalRepository.findById(goalId).orElse(null);
@@ -313,6 +345,8 @@ public class TransactionService {
 
                 eventPublisherService.publishEvent(routingKey, eventType, goal.getUserId(), payload);
                 goal.setReachedNotified(true);
+            } else if (goal.getCurrentAmount().compareTo(goal.getTargetAmount()) < 0) {
+                goal.setReachedNotified(false);
             }
 
             goalRepository.save(goal);
@@ -327,6 +361,9 @@ public class TransactionService {
                 goal.setCurrentAmount(goal.getCurrentAmount().subtract(amount));
             } else {
                 goal.setCurrentAmount(goal.getCurrentAmount().add(amount));
+            }
+            if (goal.getCurrentAmount().compareTo(goal.getTargetAmount()) < 0) {
+                goal.setReachedNotified(false);
             }
             goalRepository.save(goal);
         }

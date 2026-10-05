@@ -34,6 +34,11 @@ public class GoalService {
 
         Goal goal = goalMapper.toEntity(request);
         goal.setUserId(userId);
+        if (request.status() != null) {
+            goal.setStatus(request.status());
+        } else {
+            goal.setStatus("ACTIVE");
+        }
 
         Goal savedGoal = goalRepository.save(goal);
         return goalMapper.toDTO(savedGoal);
@@ -72,6 +77,9 @@ public class GoalService {
         }
 
         goalMapper.updateEntity(request, goal);
+        if (request.status() != null) {
+            goal.setStatus(request.status());
+        }
         Goal updatedGoal = goalRepository.save(goal);
         return goalMapper.toDTO(updatedGoal);
     }

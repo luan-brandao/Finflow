@@ -156,6 +156,25 @@ export default function TransactionsPage() {
       }
     }
 
+    if (type === 'EXPENSE' && goalId) {
+      const selectedGoal = goals.find(g => g.id === goalId)
+      if (selectedGoal) {
+        let currentAmount = selectedGoal.currentAmount
+        const originalTx = transactions.find(t => t.id === editingId)
+        if (originalTx && originalTx.goalId === goalId) {
+          if (originalTx.type === 'INCOME') {
+            currentAmount = currentAmount - originalTx.amount
+          } else {
+            currentAmount = currentAmount + originalTx.amount
+          }
+        }
+        if (numericAmount > currentAmount) {
+          setError(`Não é possível retirar este valor. Saldo disponível na meta "${selectedGoal.title}": ${formatCurrency(currentAmount)}`)
+          return;
+        }
+      }
+    }
+
     setError('')
     setSuccess('')
     setIsSubmitting(true)
@@ -180,12 +199,14 @@ export default function TransactionsPage() {
       }
       setIsFormOpen(false)
       fetchData()
+      window.dispatchEvent(new CustomEvent('notification-refresh'))
       
       // Auto clear success message
       setTimeout(() => setSuccess(''), 4000)
     } catch (err: any) {
       console.error(err)
-      setError('Ocorreu um erro ao salvar o lançamento no backend.')
+      const errorMsg = err.response?.data?.message || err.response?.data || 'Ocorreu um erro ao salvar o lançamento no backend.'
+      setError(errorMsg)
     } finally {
       setIsSubmitting(false)
     }
@@ -645,6 +666,7 @@ export default function TransactionsPage() {
               await transactionService.delete(deleteId)
               setSuccess('Lançamento removido com sucesso!')
               fetchData()
+              window.dispatchEvent(new CustomEvent('notification-refresh'))
             }
           }}
           onClose={() => setDeleteId(null)}

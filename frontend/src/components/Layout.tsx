@@ -57,12 +57,25 @@ export default function Layout({ children }: LayoutProps) {
     }
   }
 
-  // Poll for notifications periodically
+  // Poll for notifications periodically and listen to local refreshes
   useEffect(() => {
     if (profile) {
       fetchNotifications()
       const interval = setInterval(fetchNotifications, 30000) // Poll every 30s
-      return () => clearInterval(interval)
+      
+      const handleLocalRefresh = () => {
+        fetchNotifications()
+        // Also schedule delayed fetches to capture asynchronous RabbitMQ-processed notifications
+        setTimeout(fetchNotifications, 1000)
+        setTimeout(fetchNotifications, 3500)
+        setTimeout(fetchNotifications, 6000)
+      }
+      window.addEventListener('notification-refresh', handleLocalRefresh)
+
+      return () => {
+        clearInterval(interval)
+        window.removeEventListener('notification-refresh', handleLocalRefresh)
+      }
     }
   }, [profile])
 

@@ -23,6 +23,8 @@ public record GoalRequestDTO(
         BigDecimal currentAmount,
 
         @NotNull
-        LocalDate targetDate
+        LocalDate targetDate,
+
+        String status
 ) {
 }

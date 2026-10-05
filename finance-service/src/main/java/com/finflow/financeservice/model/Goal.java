@@ -38,6 +38,9 @@ public class Goal {
     @Column(name = "reached_notified", nullable = false)
     private boolean reachedNotified = false;
 
+    @Column(name = "status", nullable = false, length = 30)
+    private String status = "ACTIVE";
+
     @Column(name = "deadline_notified", nullable = false)
     private boolean deadlineNotified = false;
 

@@ -11,10 +11,14 @@ import {
   Coins,
   Calendar,
   Sparkles,
-  TrendingUp
+  TrendingUp,
+  Eye,
+  Printer,
+  Award
 } from 'lucide-react'
 import Layout from '../../components/Layout'
 import goalService from '../../services/goalService'
+import transactionService from '../../services/transactionService'
 import ConfirmModal from '../../components/ConfirmModal'
 import type { Goal } from '../../types'
 
@@ -35,6 +39,10 @@ export default function GoalsPage() {
   const [fundAmount, setFundAmount] = useState('')
   const [isFunding, setIsFunding] = useState(false)
 
+  // Detail Modal state for historical completed goals
+  const [detailGoal, setDetailGoal] = useState<Goal | null>(null)
+  const [allTransactions, setAllTransactions] = useState<any[]>([])
+
   // Confirmation state
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
@@ -48,8 +56,12 @@ export default function GoalsPage() {
     setLoading(true)
     setError('')
     try {
-      const data = await goalService.findAll()
-      setGoals(data)
+      const [goalsData, txsData] = await Promise.all([
+        goalService.findAll(),
+        transactionService.findAll()
+      ])
+      setGoals(goalsData)
+      setAllTransactions(txsData)
     } catch (err: any) {
       console.error(err)
       setError('Erro ao carregar seus objetivos e metas financeiras.')
@@ -146,6 +158,7 @@ export default function GoalsPage() {
       }
       setIsFormOpen(false)
       fetchGoals()
+      window.dispatchEvent(new CustomEvent('notification-refresh'))
       
       // Auto clear success message
       setTimeout(() => setSuccess(''), 4000)
@@ -183,6 +196,7 @@ export default function GoalsPage() {
       setSuccess(`Adicionado R$ ${amount.toFixed(2)} à meta "${fundingGoal.title}"!`)
       setIsFundOpen(false)
       fetchGoals()
+      window.dispatchEvent(new CustomEvent('notification-refresh'))
 
       // Auto clear success message
       setTimeout(() => setSuccess(''), 4000)
@@ -192,6 +206,124 @@ export default function GoalsPage() {
     } finally {
       setIsFunding(false)
     }
+  }
+
+  const handleFinalizeGoal = async (goal: Goal) => {
+    setError('')
+    setSuccess('')
+    try {
+      await goalService.update(goal.id, {
+        title: goal.title,
+        targetAmount: goal.targetAmount,
+        currentAmount: goal.currentAmount,
+        targetDate: goal.targetDate,
+        status: 'COMPLETED'
+      })
+      setSuccess(`Parabéns! A meta "${goal.title}" foi finalizada com sucesso! 🎉`)
+      fetchGoals()
+      window.dispatchEvent(new CustomEvent('notification-refresh'))
+      setTimeout(() => setSuccess(''), 4000)
+    } catch (err) {
+      console.error(err)
+      setError('Ocorreu um erro ao finalizar o objetivo financeiro.')
+    }
+  }
+
+  const handleGeneratePDF = (goal: Goal, txs: any[]) => {
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) {
+      alert('Por favor, habilite popups para visualizar e baixar o PDF do relatório.')
+      return
+    }
+
+    const txsRows = txs.map(t => `
+      <tr style="border-bottom: 1px solid #e2e8f0;">
+        <td style="padding: 12px; font-size: 13px; font-family: monospace;">${formatDate(t.date)}</td>
+        <td style="padding: 12px; font-size: 13px;">${t.description}</td>
+        <td style="padding: 12px; font-size: 13px; font-weight: bold; color: ${t.type === 'INCOME' ? '#059669' : '#dc2626'};">
+          ${t.type === 'INCOME' ? 'Aporte' : 'Retirada'}
+        </td>
+        <td style="padding: 12px; font-size: 13px; font-family: monospace; text-align: right; font-weight: bold;">
+          ${t.type === 'INCOME' ? '+' : '-'} ${formatCurrency(t.amount)}
+        </td>
+      </tr>
+    `).join('')
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Finflow - Relatório de Meta Concluída: ${goal.title}</title>
+          <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1e293b; padding: 40px; margin: 0; }
+            .header { border-bottom: 2px solid #6366f1; padding-bottom: 20px; margin-bottom: 30px; }
+            .logo { font-size: 24px; font-weight: 800; color: #4f46e5; margin-bottom: 5px; }
+            .title { font-size: 20px; font-weight: 700; margin-bottom: 15px; }
+            .meta-info { display: grid; grid-template-cols: 1fr 1fr; gap: 15px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-bottom: 30px; }
+            .meta-item { font-size: 13px; }
+            .meta-label { font-weight: bold; color: #64748b; text-transform: uppercase; font-size: 11px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th { background: #f1f5f9; text-align: left; padding: 12px; font-size: 12px; font-weight: bold; text-transform: uppercase; color: #475569; }
+            .footer { margin-top: 50px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="logo">FINFLOW</div>
+            <div style="font-size: 12px; color: #64748b;">Relatório Consolidado de Objetivo Concluído</div>
+          </div>
+          
+          <div class="title">Meta: ${goal.title}</div>
+          
+          <div class="meta-info">
+            <div class="meta-item">
+              <span class="meta-label">Valor Alvo</span><br/>
+              <span style="font-size: 16px; font-weight: bold; color: #4f46e5;">${formatCurrency(goal.targetAmount)}</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Valor Final Acumulado</span><br/>
+              <span style="font-size: 16px; font-weight: bold; color: #059669;">${formatCurrency(goal.currentAmount)}</span>
+            </div>
+            <div class="meta-item" style="margin-top: 10px;">
+              <span class="meta-label">Prazo Estipulado</span><br/>
+              <span>${formatDate(goal.targetDate)}</span>
+            </div>
+            <div class="meta-item" style="margin-top: 10px;">
+              <span class="meta-label">Data de Emissão</span><br/>
+              <span>${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+            </div>
+          </div>
+          
+          <div style="font-size: 15px; font-weight: 700; margin-top: 30px;">Histórico de Transações e Aportes</div>
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 15%;">Data</th>
+                <th>Descrição</th>
+                <th style="width: 15%;">Tipo</th>
+                <th style="width: 20%; text-align: right;">Valor</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${txsRows || '<tr><td colspan="4" style="text-align: center; padding: 20px; color: #94a3b8; font-size: 13px;">Nenhuma transação registrada para esta meta.</td></tr>'}
+            </tbody>
+          </table>
+          
+          <div class="footer">
+            Este é um documento oficial gerado pela plataforma Finflow de planejamento financeiro pessoal.
+          </div>
+          
+          <script>
+            window.onload = function() {
+              window.print();
+              window.onafterprint = function() {
+                window.close();
+              };
+            }
+          </script>
+        </body>
+      </html>
+    `)
+    printWindow.document.close()
   }
 
   const formatCurrency = (val: number) => {
@@ -361,15 +493,15 @@ export default function GoalsPage() {
             <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
             <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Carregando suas metas financeiras...</p>
           </div>
-        ) : goals.length === 0 ? (
+        ) : goals.filter(g => g.status !== 'COMPLETED').length === 0 ? (
           <div className="py-24 text-center text-slate-400 dark:text-slate-500 flex flex-col items-center justify-center gap-3 bg-white dark:bg-[#1E293B] border border-slate-200/80 dark:border-slate-800/80 rounded-2xl shadow-sm">
             <Target className="w-12 h-10 text-slate-300 dark:text-slate-700" />
-            <p className="text-sm font-bold">Nenhum objetivo cadastrado.</p>
+            <p className="text-sm font-bold">Nenhum objetivo ativo cadastrado.</p>
             <p className="text-xs max-w-xs leading-relaxed text-slate-400 dark:text-slate-550 font-medium">Cadastre objetivos financeiros no botão acima e comece a acompanhar seu progresso para a realização de sonhos de forma planejada.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {goals.map((goal) => {
+            {goals.filter(g => g.status !== 'COMPLETED').map((goal) => {
               const remainingAmount = Math.max(0, goal.targetAmount - goal.currentAmount)
               const percentCompleted = goal.targetAmount > 0 
                 ? Math.min(100, Math.round((goal.currentAmount / goal.targetAmount) * 100)) 
@@ -460,7 +592,7 @@ export default function GoalsPage() {
                               Faltam <span className="font-bold text-slate-800 dark:text-slate-200">{formatCurrency(remainingAmount)}</span>
                             </p>
                           </div>
-                          <div className="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500 font-semibold leading-relaxed">
+                          <div className="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-550 font-semibold leading-relaxed">
                             <Sparkles className="w-4 h-4 text-indigo-500 shrink-0" />
                             <p className="truncate">
                               Economize <span className="font-bold text-slate-700 dark:text-slate-300 font-mono">{formatCurrency(requiredMonthlySaving)}</span>/mês
@@ -475,7 +607,7 @@ export default function GoalsPage() {
                       )}
                     </div>
 
-                    {remainingAmount > 0 && (
+                    {remainingAmount > 0 ? (
                       <button
                         type="button"
                         onClick={() => handleOpenFund(goal)}
@@ -483,6 +615,15 @@ export default function GoalsPage() {
                       >
                         <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
                         <span>Aportar Fundos</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleFinalizeGoal(goal)}
+                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shrink-0 cursor-pointer shadow-sm"
+                      >
+                        <Award className="w-3.5 h-3.5 text-white" />
+                        <span>Finalizar Meta</span>
                       </button>
                     )}
 
@@ -493,6 +634,66 @@ export default function GoalsPage() {
             })}
           </div>
         )}
+
+        {/* Completed Goals Section (Histórico) */}
+        {!loading && goals.filter(g => g.status === 'COMPLETED').length > 0 && (
+          <div className="space-y-6 pt-10 border-t border-slate-100 dark:border-slate-800/80">
+            <div>
+              <h2 className="text-xl font-extrabold text-slate-800 dark:text-white flex items-center gap-2">
+                <Award className="w-5.5 h-5.5 text-amber-500" />
+                <span>Histórico de Metas Concluídas</span>
+              </h2>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Veja seus objetivos já conquistados e finalizados.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {goals.filter(g => g.status === 'COMPLETED').map((goal) => (
+                <div 
+                  key={goal.id} 
+                  className="bg-slate-50/50 dark:bg-slate-900/20 border border-slate-200 dark:border-slate-800/80 rounded-2xl p-6 shadow-xs flex flex-col justify-between hover:shadow-sm transition-all relative overflow-hidden group"
+                >
+                  <div className="space-y-4 w-full">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-xl flex items-center justify-center border border-emerald-100/50">
+                          <Award className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h3 className="text-base font-extrabold text-slate-700 dark:text-slate-350 leading-tight line-through opacity-80">{goal.title}</h3>
+                          <p className="text-[10px] text-emerald-650 dark:text-emerald-400 font-semibold uppercase tracking-wider mt-1 flex items-center gap-1.5 font-mono">
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Meta Concluída</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => setDetailGoal(goal)}
+                        className="p-2 text-slate-400 hover:text-indigo-650 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+                        title="Ver detalhes e transações"
+                      >
+                        <Eye className="w-4.5 h-4.5" />
+                      </button>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-end text-xs font-semibold text-slate-500">
+                        <span>Progresso ({Math.min(100, Math.round((goal.currentAmount / goal.targetAmount) * 100))}%)</span>
+                        <span className="font-mono font-extrabold text-slate-700 dark:text-slate-300">{formatCurrency(goal.currentAmount)} / {formatCurrency(goal.targetAmount)}</span>
+                      </div>
+                      <div className="w-full h-2 bg-emerald-500/20 dark:bg-emerald-500/10 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-emerald-500 rounded-full" 
+                          style={{ width: `${Math.min(100, Math.round((goal.currentAmount / goal.targetAmount) * 100))}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}}
 
         {/* Contribute Modal Form */}
         {isFundOpen && fundingGoal && (
@@ -560,6 +761,101 @@ export default function GoalsPage() {
           </div>
         )}
 
+        {/* Detail Modal for Completed Goals */}
+        {detailGoal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+            <div className="bg-white dark:bg-[#1E293B] border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-6 max-w-2xl w-full shadow-xl space-y-6 animate-scale-in">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/60">
+                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                  <Award className="w-5 h-5 text-amber-500" />
+                  <span>Detalhes do Objetivo Concluído</span>
+                </h3>
+                <button 
+                  type="button" 
+                  onClick={() => setDetailGoal(null)}
+                  className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-lg transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800/40 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400">
+                  <div>
+                    <p className="text-slate-400 uppercase font-bold text-[9px] mb-1">Título da Meta</p>
+                    <p className="font-extrabold text-slate-800 dark:text-white text-sm">{detailGoal.title}</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-400 uppercase font-bold text-[9px] mb-1">Prazo Estipulado</p>
+                    <p className="font-extrabold text-slate-800 dark:text-white text-sm">{formatDate(detailGoal.targetDate)}</p>
+                  </div>
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800/30 sm:pt-0 sm:border-0">
+                    <p className="text-slate-400 uppercase font-bold text-[9px] mb-1">Valor Alvo</p>
+                    <p className="font-extrabold text-indigo-600 dark:text-indigo-400 text-sm font-mono">{formatCurrency(detailGoal.targetAmount)}</p>
+                  </div>
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800/30 sm:pt-0 sm:border-0">
+                    <p className="text-slate-400 uppercase font-bold text-[9px] mb-1">Valor Final Acumulado</p>
+                    <p className="font-extrabold text-emerald-600 dark:text-emerald-400 text-sm font-mono">{formatCurrency(detailGoal.currentAmount)}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-550">Histórico de Transações</h4>
+                  
+                  <div className="border border-slate-100 dark:border-slate-800/80 rounded-xl overflow-hidden max-h-60 overflow-y-auto">
+                    {(() => {
+                      const txs = allTransactions.filter(t => t.goalId === detailGoal.id)
+                      if (txs.length === 0) {
+                        return (
+                          <div className="p-8 text-center text-xs font-medium text-slate-400 dark:text-slate-550">
+                            Nenhuma transação registrada para esta meta.
+                          </div>
+                        )
+                      }
+                      return (
+                        <div className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                          {txs.map((tx) => {
+                            const isIncome = tx.type === 'INCOME'
+                            return (
+                              <div key={tx.id} className="p-3 flex items-center justify-between text-xs hover:bg-slate-50 dark:hover:bg-slate-800/25 transition-colors">
+                                <div className="min-w-0">
+                                  <p className="font-bold text-slate-700 dark:text-slate-300 truncate">{tx.description}</p>
+                                  <p className="text-[10px] text-slate-400 mt-0.5 font-mono">{formatDate(tx.date)}</p>
+                                </div>
+                                <span className={`font-bold font-mono tabular-nums ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                                  {isIncome ? '+' : '-'} {formatCurrency(tx.amount)}
+                                </span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )
+                    })()}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800/60">
+                <button
+                  type="button"
+                  onClick={() => setDetailGoal(null)}
+                  className="px-4 py-2.5 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-650 dark:text-slate-300 font-bold rounded-xl text-xs transition-all cursor-pointer"
+                >
+                  Fechar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleGeneratePDF(detailGoal, allTransactions.filter(t => t.goalId === detailGoal.id))}
+                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>Gerar PDF</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <ConfirmModal
           isOpen={!!deleteId}
           title="Excluir Objetivo Financeiro"
@@ -578,6 +874,7 @@ export default function GoalsPage() {
                 await goalService.delete(deleteId)
                 setSuccess('Objetivo financeiro excluído e saldo devolvido com sucesso!')
                 fetchGoals()
+                window.dispatchEvent(new CustomEvent('notification-refresh'))
               } catch (err: any) {
                 setError('Erro ao excluir objetivo.')
               }
