@@ -38,10 +38,28 @@ services:
 
     volumes:
       - postgres_finance_data:/var/lib/postgresql/data
+      - ./postgres-finance-init:/docker-entrypoint-initdb.d
 
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d finflow_finance"]
       interval: 5s
+      timeout: 5s
+      retries: 5
+
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: finflow-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
       timeout: 5s
       retries: 5
 
@@ -90,6 +108,8 @@ services:
     depends_on:
       postgres-finance:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
       eureka-server:
         condition: service_started
 
@@ -100,6 +120,39 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-finance:5432/finflow_finance
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
+      JWT_SECRET: SUCyqUK/gHFUSeNnni37KZHllM1w6+43ibwhqcXlloU=
+
+
+  notification-service:
+    build:
+      context: ./notification-service
+
+    container_name: finflow-notification-service
+    restart: unless-stopped
+
+    depends_on:
+      postgres-finance:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+
+    ports:
+      - "8083:8083"
+
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-finance:5432/finflow_notifications
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
       JWT_SECRET: SUCyqUK/gHFUSeNnni37KZHllM1w6+43ibwhqcXlloU=
 
 

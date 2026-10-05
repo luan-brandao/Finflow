@@ -175,3 +175,24 @@ export interface CardInvoice {
   closedAt?: string;
   paidAt?: string;
 }
+
+export interface Notification {
+  id: string;
+  userId: string;
+  category: string;
+  priority: string;
+  title: string;
+  content: string;
+  isRead: boolean;
+  createdAt: string;
+  readAt?: string;
+}
+
+export interface UserNotificationPreference {
+  userId: string;
+  receiveInvoices: boolean;
+  receiveGoals: boolean;
+  receiveBudgets: boolean;
+  receiveSummary: boolean;
+}
+

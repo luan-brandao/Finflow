@@ -1,0 +1,1 @@
+CREATE DATABASE finflow_notifications;

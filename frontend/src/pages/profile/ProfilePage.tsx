@@ -12,11 +12,13 @@ import {
   EyeOff,
   Edit2,
   Shield,
-  Coins
+  Coins,
+  Bell
 } from 'lucide-react'
 import Layout from '../../components/Layout'
 import userService from '../../services/userService'
 import monthlyIncomeService from '../../services/monthlyIncomeService'
+import notificationService from '../../services/notificationService'
 import type { User } from '../../types'
 
 export default function ProfilePage() {
@@ -43,6 +45,14 @@ export default function ProfilePage() {
   const [incomeMonth, setIncomeMonth] = useState(new Date().getMonth() + 1)
   const [isSavingIncome, setIsSavingIncome] = useState(false)
 
+  // Notification Preferences State
+  const [preferences, setPreferences] = useState({
+    receiveInvoices: true,
+    receiveGoals: true,
+    receiveBudgets: true,
+    receiveSummary: true
+  })
+
   const fetchProfile = async () => {
     setLoading(true)
     setError('')
@@ -62,6 +72,18 @@ export default function ProfilePage() {
         setIncomeAmount('4500.00')
         setIncomeYear(new Date().getFullYear())
         setIncomeMonth(new Date().getMonth() + 1)
+      }
+
+      try {
+        const prefs = await notificationService.getPreferences()
+        setPreferences({
+          receiveInvoices: prefs.receiveInvoices,
+          receiveGoals: prefs.receiveGoals,
+          receiveBudgets: prefs.receiveBudgets,
+          receiveSummary: prefs.receiveSummary
+        })
+      } catch (e) {
+        console.error('Erro ao buscar preferências de notificações:', e)
       }
     } catch (err: any) {
       console.error(err)
@@ -97,6 +119,21 @@ export default function ProfilePage() {
       setError(err.response?.data?.message || err.response?.data?.error || 'Erro ao salvar a renda de referência.')
     } finally {
       setIsSavingIncome(false)
+    }
+  }
+
+  const handleSavePreferences = async (field: string, value: boolean) => {
+    setError('')
+    setSuccess('')
+    const updated = { ...preferences, [field]: value }
+    setPreferences(updated)
+    try {
+      await notificationService.updatePreferences(updated)
+      setSuccess('Preferências de notificação salvas com sucesso!')
+      setTimeout(() => setSuccess(''), 4000)
+    } catch (err: any) {
+      console.error(err)
+      setError('Erro ao salvar preferências de notificação no servidor.')
     }
   }
 
@@ -493,6 +530,89 @@ export default function ProfilePage() {
                   </div>
                 </form>
               )}
+            </div>
+
+            {/* 5. Preferências de Notificação Section */}
+            <div className="bg-white dark:bg-[#1E293B] border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-6 sm:p-8 shadow-sm space-y-6 animate-fade-in">
+              <div className="border-b border-slate-100 dark:border-slate-800/60 pb-4">
+                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                  <Bell className="w-4.5 h-4.5 text-indigo-500 shrink-0" />
+                  <span>Preferências de Notificação</span>
+                </h3>
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 font-medium">
+                  Gerencie quais alertas e comunicações você gostaria de receber do Finflow.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                {/* 1. Faturas */}
+                <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/40 rounded-xl border border-slate-100 dark:border-slate-800/60 transition-colors">
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">Alertas de Faturas</h4>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 font-medium leading-relaxed">Fechamento, lembretes de vencimento (7 dias / hoje) e faturas atrasadas.</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer select-none shrink-0">
+                    <input 
+                      type="checkbox" 
+                      checked={preferences.receiveInvoices} 
+                      onChange={(e) => handleSavePreferences('receiveInvoices', e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-slate-200 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                  </label>
+                </div>
+
+                {/* 2. Metas */}
+                <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/40 rounded-xl border border-slate-100 dark:border-slate-800/60 transition-colors">
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">Alertas de Metas</h4>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 font-medium leading-relaxed">Atingimento de metas, metas sem movimentação e prazos limites.</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer select-none shrink-0">
+                    <input 
+                      type="checkbox" 
+                      checked={preferences.receiveGoals} 
+                      onChange={(e) => handleSavePreferences('receiveGoals', e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-slate-200 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                  </label>
+                </div>
+
+                {/* 3. Orçamentos */}
+                <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/40 rounded-xl border border-slate-100 dark:border-slate-800/60 transition-colors">
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">Alertas de Orçamentos</h4>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 font-medium leading-relaxed">Alertas quando você atingir 80%, 100% ou ultrapassar limites das categorias.</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer select-none shrink-0">
+                    <input 
+                      type="checkbox" 
+                      checked={preferences.receiveBudgets} 
+                      onChange={(e) => handleSavePreferences('receiveBudgets', e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-slate-200 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                  </label>
+                </div>
+
+                {/* 4. Resumos Mensais */}
+                <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/40 rounded-xl border border-slate-100 dark:border-slate-800/60 transition-colors">
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">Resumos Mensais</h4>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 font-medium leading-relaxed">Disponibilização do resumo financeiro consolidado mensal do Finflow.</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer select-none shrink-0">
+                    <input 
+                      type="checkbox" 
+                      checked={preferences.receiveSummary} 
+                      onChange={(e) => handleSavePreferences('receiveSummary', e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-slate-200 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                  </label>
+                </div>
+              </div>
             </div>
 
           </div>

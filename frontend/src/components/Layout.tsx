@@ -12,11 +12,21 @@ import {
   Sun,
   Moon,
   Shield,
-  Target
+  Target,
+  Bell,
+  Trash2,
+  CheckCheck,
+  Inbox,
+  AlertTriangle,
+  AlertCircle,
+  CheckCircle2,
+  Info,
+  Loader2
 } from 'lucide-react'
 import Logo from './Logo'
 import authService from '../services/authService'
 import userService from '../services/userService'
+import notificationService from '../services/notificationService'
 import OnboardingTutorial from './OnboardingTutorial'
 import type { User } from '../types'
 
@@ -28,6 +38,92 @@ export default function Layout({ children }: LayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [profile, setProfile] = useState<User | null>(null)
   const [showOnboarding, setShowOnboarding] = useState(false)
+  
+  // Notification State
+  const [notifications, setNotifications] = useState<any[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
+  const [loadingNotifications, setLoadingNotifications] = useState(false)
+
+  const fetchNotifications = async () => {
+    if (!authService.isAuthenticated()) return
+    try {
+      const list = await notificationService.findAll()
+      setNotifications(list)
+      const count = await notificationService.countUnread()
+      setUnreadCount(count)
+    } catch (err) {
+      console.error('Erro ao buscar notificações:', err)
+    }
+  }
+
+  // Poll for notifications periodically
+  useEffect(() => {
+    if (profile) {
+      fetchNotifications()
+      const interval = setInterval(fetchNotifications, 30000) // Poll every 30s
+      return () => clearInterval(interval)
+    }
+  }, [profile])
+
+  const handleMarkAsRead = async (id: string) => {
+    try {
+      await notificationService.markAsRead(id)
+      await fetchNotifications()
+    } catch (err) {
+      console.error('Erro ao marcar como lida:', err)
+    }
+  }
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      await notificationService.markAllAsRead()
+      await fetchNotifications()
+    } catch (err) {
+      console.error('Erro ao marcar todas como lidas:', err)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    try {
+      await notificationService.delete(id)
+      await fetchNotifications()
+    } catch (err) {
+      console.error('Erro ao deletar notificação:', err)
+    }
+  }
+
+  const getPriorityIcon = (priority: string) => {
+    switch (priority) {
+      case 'SUCCESS': return CheckCircle2;
+      case 'WARNING': return AlertTriangle;
+      case 'URGENT': return AlertCircle;
+      default: return Info;
+    }
+  }
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'SUCCESS': 
+        return 'bg-emerald-50 text-emerald-600 border-emerald-100/50 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30';
+      case 'WARNING': 
+        return 'bg-amber-50 text-amber-600 border-amber-100/50 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30';
+      case 'URGENT': 
+        return 'bg-red-50 text-red-600 border-red-100/50 dark:bg-red-950/20 dark:text-red-400 dark:border-red-900/30';
+      default: 
+        return 'bg-blue-50 text-blue-600 border-blue-100/50 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/30';
+    }
+  }
+
+  const formatDate = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr)
+      return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' + 
+             d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    } catch {
+      return dateStr
+    }
+  }
   
   // Theme state with instant client-safe initialization
   const [isDark, setIsDark] = useState(() => {
@@ -163,6 +259,22 @@ export default function Layout({ children }: LayoutProps) {
             </button>
           </div>
 
+          {/* Notifications Button */}
+          <button
+            onClick={() => setIsNotificationsOpen(true)}
+            className="flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800/60 hover:text-white transition-all duration-200 w-full text-left cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <Bell className="w-4 h-4 text-slate-400" />
+              <span>Notificações</span>
+            </div>
+            {unreadCount > 0 && (
+              <span className="bg-rose-500 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full min-w-[20px] text-center">
+                {unreadCount}
+              </span>
+            )}
+          </button>
+
           {profile && (
             <div className="flex items-center gap-3 px-3 py-2 bg-slate-800/40 border border-slate-800/50 rounded-lg">
               <div className="w-8 h-8 rounded-full bg-indigo-500 text-white flex items-center justify-center font-bold text-xs shrink-0 uppercase select-none">
@@ -189,12 +301,26 @@ export default function Layout({ children }: LayoutProps) {
         <Link to="/dashboard">
           <Logo className="w-7 h-7" showText={true} textSize="text-md" textColor="text-white" />
         </Link>
-        <button
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white rounded-lg transition-colors"
-        >
-          {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsNotificationsOpen(true)}
+            className="p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white rounded-lg transition-colors relative cursor-pointer"
+            title="Notificações"
+          >
+            <Bell className="w-5 h-5" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 bg-rose-500 text-white text-[9px] font-extrabold w-4.5 h-4.5 flex items-center justify-center rounded-full">
+                {unreadCount}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white rounded-lg transition-colors cursor-pointer"
+          >
+            {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        </div>
       </header>
 
       {/* Mobile Menu Panel */}
@@ -258,6 +384,119 @@ export default function Layout({ children }: LayoutProps) {
           userId={profile.id} 
           onComplete={handleOnboardingComplete} 
         />
+      )}
+
+      {/* Slide-out Notifications Drawer */}
+      {isNotificationsOpen && (
+        <div className="fixed inset-0 z-50 overflow-hidden" aria-labelledby="slide-over-title" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 overflow-hidden">
+            <div 
+              className="absolute inset-0 bg-slate-950/40 backdrop-blur-xs transition-opacity duration-300" 
+              onClick={() => setIsNotificationsOpen(false)}
+            />
+
+            <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
+              <div className="pointer-events-auto w-screen max-w-md transform transition-all duration-300 ease-in-out">
+                <div className="flex h-full flex-col bg-white dark:bg-[#1E293B] shadow-2xl border-l border-slate-150 dark:border-slate-800/60">
+                  
+                  <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-900/40">
+                    <div className="flex items-center gap-2.5">
+                      <Bell className="w-5 h-5 text-indigo-500" />
+                      <h2 className="text-md font-bold text-slate-900 dark:text-white">Central de Notificações</h2>
+                    </div>
+                    <button 
+                      onClick={() => setIsNotificationsOpen(false)}
+                      className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-600 dark:hover:text-white transition-colors cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {notifications.length > 0 && (
+                    <div className="px-6 py-3 border-b border-slate-100 dark:border-slate-850/60 flex items-center justify-between text-xs font-semibold text-slate-500">
+                      <span>{unreadCount} não lidas de {notifications.length} total</span>
+                      <button
+                        onClick={handleMarkAllAsRead}
+                        className="flex items-center gap-1.5 text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors cursor-pointer"
+                      >
+                        <CheckCheck className="w-3.5 h-3.5" />
+                        <span>Marcar todas como lidas</span>
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                    {loadingNotifications ? (
+                      <div className="h-full flex flex-col items-center justify-center gap-2">
+                        <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
+                        <span className="text-xs text-slate-400 font-medium">Buscando atualizações...</span>
+                      </div>
+                    ) : notifications.length === 0 ? (
+                      <div className="h-full flex flex-col items-center justify-center text-center p-8 gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-slate-450 border border-slate-100 dark:border-slate-800">
+                          <Inbox className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Nenhuma notificação</p>
+                          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 max-w-xs leading-relaxed">Você está totalmente em dia! Suas novidades financeiras e alertas aparecerão aqui.</p>
+                        </div>
+                      </div>
+                    ) : (
+                      notifications.map((n) => {
+                        const PriorityIcon = getPriorityIcon(n.priority)
+                        const priorityColor = getPriorityColor(n.priority)
+                        return (
+                          <div 
+                            key={n.id} 
+                            onClick={() => !n.isRead && handleMarkAsRead(n.id)}
+                            className={`p-4 rounded-xl border transition-all duration-200 cursor-pointer relative group flex items-start gap-3.5 ${
+                              n.isRead 
+                                ? 'bg-white dark:bg-[#1E293B] border-slate-100 dark:border-slate-850 opacity-80 hover:opacity-100' 
+                                : 'bg-indigo-50/20 dark:bg-indigo-950/10 border-indigo-100/50 dark:border-indigo-900/30'
+                            }`}
+                          >
+                            <div className={`p-2 rounded-lg shrink-0 border ${priorityColor}`}>
+                              <PriorityIcon className="w-4 h-4" />
+                            </div>
+
+                            <div className="flex-1 min-w-0 pr-6">
+                              <div className="flex items-center gap-2">
+                                <h3 className={`text-xs font-bold leading-none truncate ${n.isRead ? 'text-slate-700 dark:text-slate-300' : 'text-slate-950 dark:text-white'}`}>
+                                  {n.title}
+                                </h3>
+                                {!n.isRead && (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
+                                )}
+                              </div>
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 font-medium leading-relaxed">
+                                {n.content}
+                              </p>
+                              <span className="text-[9px] font-mono font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase block mt-2">
+                                {formatDate(n.createdAt)}
+                              </span>
+                            </div>
+
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleDelete(n.id)
+                              }}
+                              className="absolute top-3.5 right-3.5 p-1 rounded-md text-slate-400 hover:text-red-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+                              title="Excluir notificação"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )
+                      })
+                    )}
+                  </div>
+
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>
