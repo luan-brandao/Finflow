@@ -693,7 +693,7 @@ export default function GoalsPage() {
               ))}
             </div>
           </div>
-        )}}
+        )}
 
         {/* Contribute Modal Form */}
         {isFundOpen && fundingGoal && (
