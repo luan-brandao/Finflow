@@ -191,6 +191,7 @@ class TransactionServiceTest {
         goal.setId(goalId);
         goal.setUserId(userId);
         goal.setCurrentAmount(new BigDecimal("1000.00"));
+        goal.setTargetAmount(new BigDecimal("5000.00"));
 
         when(transactionRepository.findByIdAndUserId(id, userId)).thenReturn(Optional.of(transaction));
         when(goalRepository.findById(goalId)).thenReturn(Optional.of(goal));
