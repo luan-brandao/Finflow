@@ -22,6 +22,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -80,7 +81,16 @@ class GoalServiceTest {
         savedGoal.setCurrentAmount(new BigDecimal("10000.00"));
         savedGoal.setStatus("ACTIVE");
 
-        GoalResponseDTO expectedResponse = new GoalResponseDTO(savedGoal.getId(), "Comprar Carro", new BigDecimal("50000.00"), new BigDecimal("10000.00"), savedGoal.getTargetDate(), "ACTIVE");
+        GoalResponseDTO expectedResponse = new GoalResponseDTO(
+                savedGoal.getId(),
+                userId,
+                "Comprar Carro",
+                new BigDecimal("50000.00"),
+                new BigDecimal("10000.00"),
+                savedGoal.getTargetDate(),
+                "ACTIVE",
+                LocalDateTime.now()
+        );
 
         when(goalMapper.toEntity(request)).thenReturn(goal);
         when(goalRepository.save(goal)).thenReturn(savedGoal);
