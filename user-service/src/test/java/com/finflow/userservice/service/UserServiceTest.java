@@ -1,5 +1,4 @@
-
-        package com.finflow.userservice.service;
+package com.finflow.userservice.service;
 
 import com.finflow.userservice.exception.EmailAlreadyExistsException;
 import com.finflow.userservice.exception.InvalidCredentialsException;
@@ -48,15 +47,13 @@ class UserServiceTest {
     @InjectMocks
     private UserService userService;
 
-
     // =========================================================
     // CREATE USER
     // =========================================================
 
     @Test
     void shouldCreateUserSuccessfully() {
-
-        UserRequestDTO request = mock(UserRequestDTO.class);
+        UserRequestDTO request = new UserRequestDTO("Luan", "luan@finflow.com", "12345678");
         User user = new User();
         User savedUser = new User();
         UserResponseDTO response = mock(UserResponseDTO.class);
@@ -64,24 +61,13 @@ class UserServiceTest {
         user.setEmail("luan@finflow.com");
         user.setPassword("12345678");
 
+        when(userMapper.toEntity(request)).thenReturn(user);
+        when(userRepository.existsByEmail("luan@finflow.com")).thenReturn(false);
+        when(passwordEncoder.encode("12345678")).thenReturn("encoded-password");
+        when(userRepository.save(user)).thenReturn(savedUser);
+        when(userMapper.toDTO(savedUser)).thenReturn(response);
 
-        when(userMapper.toEntity(request))
-                .thenReturn(user);
-
-        when(userRepository.existsByEmail("luan@finflow.com"))
-                .thenReturn(false);
-
-        when(passwordEncoder.encode("12345678"))
-                .thenReturn("encoded-password");
-
-        when(userRepository.save(user))
-                .thenReturn(savedUser);
-
-        when(userMapper.toDTO(savedUser))
-                .thenReturn(response);
-
-        UserResponseDTO result =
-                userService.createUser(request);
+        UserResponseDTO result = userService.createUser(request);
 
         assertSame(response, result);
         assertEquals("encoded-password", user.getPassword());
@@ -96,41 +82,24 @@ class UserServiceTest {
 
     @Test
     void shouldThrowExceptionWhenEmailAlreadyExists() {
-
-        UserRequestDTO request = mock(UserRequestDTO.class);
+        UserRequestDTO request = new UserRequestDTO("Luan", "luan@finflow.com", "12345678");
         User user = new User();
-
         user.setEmail("luan@finflow.com");
 
+        when(userMapper.toEntity(request)).thenReturn(user);
+        when(userRepository.existsByEmail("luan@finflow.com")).thenReturn(true);
 
-
-        when(userMapper.toEntity(request))
-                .thenReturn(user);
-
-        when(userRepository.existsByEmail("luan@finflow.com"))
-                .thenReturn(true);
-
-        EmailAlreadyExistsException exception =
-                assertThrows(
-                        EmailAlreadyExistsException.class,
-                        () -> userService.createUser(request)
-                );
-
-        assertEquals(
-                "luan@finflow.com",
-                exception.getMessage()
+        EmailAlreadyExistsException exception = assertThrows(
+                EmailAlreadyExistsException.class,
+                () -> userService.createUser(request)
         );
 
-        verify(userRepository)
-                .existsByEmail("luan@finflow.com");
+        assertEquals("luan@finflow.com", exception.getMessage());
 
-        verify(userRepository, never())
-                .save(any());
-
-        verify(passwordEncoder, never())
-                .encode(anyString());
+        verify(userRepository).existsByEmail("luan@finflow.com");
+        verify(userRepository, never()).save(any());
+        verify(passwordEncoder, never()).encode(anyString());
     }
-
 
     // =========================================================
     // LOGIN
@@ -138,131 +107,63 @@ class UserServiceTest {
 
     @Test
     void shouldLoginSuccessfully() {
-
-        LoginRequestDTO request = mock(LoginRequestDTO.class);
+        LoginRequestDTO request = new LoginRequestDTO("luan@finflow.com", "12345678");
         User user = new User();
-        LoginResponseDTO response = new LoginResponseDTO(
-                "jwt-token",
-                "Bearer"
-        );
-
         user.setId(UUID.randomUUID());
         user.setEmail("luan@finflow.com");
         user.setPassword("encoded-password");
         user.setRole(Role.USER);
 
-        when(request.email())
-                .thenReturn("luan@finflow.com");
+        when(userRepository.findByEmail("luan@finflow.com")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("12345678", "encoded-password")).thenReturn(true);
+        when(jwtService.generateToken(user)).thenReturn("jwt-token");
 
-        when(request.password())
-                .thenReturn("12345678");
+        LoginResponseDTO result = userService.loginUser(request);
 
-        when(userRepository.findByEmail("luan@finflow.com"))
-                .thenReturn(Optional.of(user));
+        assertEquals("jwt-token", result.token());
+        assertEquals("Bearer", result.type());
 
-        when(passwordEncoder.matches(
-                "12345678",
-                "encoded-password"
-        )).thenReturn(true);
-
-        when(jwtService.generateToken(user))
-                .thenReturn("jwt-token");
-
-        LoginResponseDTO result =
-                userService.loginUser(request);
-
-        assertEquals(
-                "jwt-token",
-                result.token()
-        );
-
-        assertEquals(
-                "Bearer",
-                result.type()
-        );
-
-        verify(userRepository)
-                .findByEmail("luan@finflow.com");
-
-        verify(passwordEncoder)
-                .matches(
-                        "12345678",
-                        "encoded-password"
-                );
-
-        verify(jwtService)
-                .generateToken(user);
+        verify(userRepository).findByEmail("luan@finflow.com");
+        verify(passwordEncoder).matches("12345678", "encoded-password");
+        verify(jwtService).generateToken(user);
     }
 
     @Test
     void shouldThrowInvalidCredentialsWhenEmailDoesNotExist() {
+        LoginRequestDTO request = new LoginRequestDTO("naoexiste@finflow.com", "12345678");
 
-        LoginRequestDTO request = mock(LoginRequestDTO.class);
+        when(userRepository.findByEmail("naoexiste@finflow.com")).thenReturn(Optional.empty());
 
-        when(request.email())
-                .thenReturn("naoexiste@finflow.com");
-
-        when(userRepository.findByEmail(
-                "naoexiste@finflow.com"
-        )).thenReturn(Optional.empty());
-
-        InvalidCredentialsException exception =
-                assertThrows(
-                        InvalidCredentialsException.class,
-                        () -> userService.loginUser(request)
-                );
-
-        assertEquals(
-                "E-mail ou senha inválidos",
-                exception.getMessage()
+        InvalidCredentialsException exception = assertThrows(
+                InvalidCredentialsException.class,
+                () -> userService.loginUser(request)
         );
 
-        verify(passwordEncoder, never())
-                .matches(anyString(), anyString());
+        assertEquals("E-mail ou senha inválidos", exception.getMessage());
 
-        verify(jwtService, never())
-                .generateToken(any());
+        verify(passwordEncoder, never()).matches(anyString(), anyString());
+        verify(jwtService, never()).generateToken(any());
     }
 
     @Test
     void shouldThrowInvalidCredentialsWhenPasswordIsWrong() {
-
-        LoginRequestDTO request = mock(LoginRequestDTO.class);
+        LoginRequestDTO request = new LoginRequestDTO("luan@finflow.com", "senha-errada");
         User user = new User();
-
         user.setEmail("luan@finflow.com");
         user.setPassword("encoded-password");
 
-        when(request.email())
-                .thenReturn("luan@finflow.com");
+        when(userRepository.findByEmail("luan@finflow.com")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("senha-errada", "encoded-password")).thenReturn(false);
 
-        when(request.password())
-                .thenReturn("senha-errada");
-
-        when(userRepository.findByEmail(
-                "luan@finflow.com"
-        )).thenReturn(Optional.of(user));
-
-        when(passwordEncoder.matches(
-                "senha-errada",
-                "encoded-password"
-        )).thenReturn(false);
-
-        InvalidCredentialsException exception =
-                assertThrows(
-                        InvalidCredentialsException.class,
-                        () -> userService.loginUser(request)
-                );
-
-        assertEquals(
-                "E-mail ou senha inválidos",
-                exception.getMessage()
+        InvalidCredentialsException exception = assertThrows(
+                InvalidCredentialsException.class,
+                () -> userService.loginUser(request)
         );
 
-        verify(jwtService, never())
-                .generateToken(any());
-    }
+        assertEquals("E-mail ou senha inválidos", exception.getMessage());
 
+        verify(jwtService, never()).generateToken(any());
+    }
 
     // =========================================================
     // FIND USER BY ID
@@ -270,53 +171,36 @@ class UserServiceTest {
 
     @Test
     void shouldFindUserByIdSuccessfully() {
-
         UUID id = UUID.randomUUID();
-
         User user = new User();
         UserResponseDTO response = mock(UserResponseDTO.class);
 
-        when(userRepository.findById(id))
-                .thenReturn(Optional.of(user));
+        when(userRepository.findById(id)).thenReturn(Optional.of(user));
+        when(userMapper.toDTO(user)).thenReturn(response);
 
-        when(userMapper.toDTO(user))
-                .thenReturn(response);
-
-        UserResponseDTO result =
-                userService.findUserById(id);
+        UserResponseDTO result = userService.findUserById(id);
 
         assertSame(response, result);
 
-        verify(userRepository)
-                .findById(id);
-
-        verify(userMapper)
-                .toDTO(user);
+        verify(userRepository).findById(id);
+        verify(userMapper).toDTO(user);
     }
 
     @Test
     void shouldThrowExceptionWhenUserDoesNotExist() {
-
         UUID id = UUID.randomUUID();
 
-        when(userRepository.findById(id))
-                .thenReturn(Optional.empty());
+        when(userRepository.findById(id)).thenReturn(Optional.empty());
 
-        ResourceNotFoundException exception =
-                assertThrows(
-                        ResourceNotFoundException.class,
-                        () -> userService.findUserById(id)
-                );
-
-        assertEquals(
-                "Usuário não encontrado",
-                exception.getMessage()
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class,
+                () -> userService.findUserById(id)
         );
 
-        verify(userMapper, never())
-                .toDTO(any());
-    }
+        assertEquals("Usuário não encontrado", exception.getMessage());
 
+        verify(userMapper, never()).toDTO(any());
+    }
 
     // =========================================================
     // FIND ALL USERS
@@ -324,51 +208,27 @@ class UserServiceTest {
 
     @Test
     void shouldFindAllUsersSuccessfully() {
-
         Pageable pageable = mock(Pageable.class);
-
         User user1 = new User();
         User user2 = new User();
-
         UserResponseDTO response1 = mock(UserResponseDTO.class);
         UserResponseDTO response2 = mock(UserResponseDTO.class);
+        Page<User> page = new PageImpl<>(List.of(user1, user2));
 
-        Page<User> page = new PageImpl<>(
-                List.of(user1, user2)
-        );
+        when(userRepository.findAll(pageable)).thenReturn(page);
+        when(userMapper.toDTO(user1)).thenReturn(response1);
+        when(userMapper.toDTO(user2)).thenReturn(response2);
 
-        when(userRepository.findAll(pageable))
-                .thenReturn(page);
-
-        when(userMapper.toDTO(user1))
-                .thenReturn(response1);
-
-        when(userMapper.toDTO(user2))
-                .thenReturn(response2);
-
-        Page<UserResponseDTO> result =
-                userService.findAllUsers(pageable);
+        Page<UserResponseDTO> result = userService.findAllUsers(pageable);
 
         assertEquals(2, result.getTotalElements());
-        assertEquals(
-                response1,
-                result.getContent().get(0)
-        );
-        assertEquals(
-                response2,
-                result.getContent().get(1)
-        );
+        assertEquals(response1, result.getContent().get(0));
+        assertEquals(response2, result.getContent().get(1));
 
-        verify(userRepository)
-                .findAll(pageable);
-
-        verify(userMapper)
-                .toDTO(user1);
-
-        verify(userMapper)
-                .toDTO(user2);
+        verify(userRepository).findAll(pageable);
+        verify(userMapper).toDTO(user1);
+        verify(userMapper).toDTO(user2);
     }
-
 
     // =========================================================
     // UPDATE USER
@@ -376,123 +236,67 @@ class UserServiceTest {
 
     @Test
     void shouldUpdateUserSuccessfully() {
-
         UUID id = UUID.randomUUID();
-
-        UserUpdateDTO request = mock(UserUpdateDTO.class);
+        UserUpdateDTO request = new UserUpdateDTO("Luan", "luan@finflow.com", "12345678");
         User user = new User();
+        user.setEmail("luan@finflow.com");
         User updatedUser = new User();
         UserResponseDTO response = mock(UserResponseDTO.class);
 
-        user.setEmail("luan@finflow.com");
+        when(userRepository.findById(id)).thenReturn(Optional.of(user));
+        when(passwordEncoder.encode("12345678")).thenReturn("encoded-password");
+        when(userRepository.save(user)).thenReturn(updatedUser);
+        when(userMapper.toDTO(updatedUser)).thenReturn(response);
 
-        when(userRepository.findById(id))
-                .thenReturn(Optional.of(user));
-
-        when(request.email())
-                .thenReturn("luan@finflow.com");
-
-        when(request.password())
-                .thenReturn("12345678");
-
-        when(passwordEncoder.encode("12345678"))
-                .thenReturn("encoded-password");
-
-        when(userRepository.save(user))
-                .thenReturn(updatedUser);
-
-        when(userMapper.toDTO(updatedUser))
-                .thenReturn(response);
-
-        UserResponseDTO result =
-                userService.updateUser(id, request);
+        UserResponseDTO result = userService.updateUser(id, request);
 
         assertSame(response, result);
+        assertEquals("encoded-password", user.getPassword());
 
-        assertEquals(
-                "encoded-password",
-                user.getPassword()
-        );
-
-        verify(userMapper)
-                .updateEntity(request, user);
-
-        verify(passwordEncoder)
-                .encode("12345678");
-
-        verify(userRepository)
-                .save(user);
+        verify(userMapper).updateEntity(request, user);
+        verify(passwordEncoder).encode("12345678");
+        verify(userRepository).save(user);
     }
 
     @Test
     void shouldThrowExceptionWhenUpdatingNonExistingUser() {
-
         UUID id = UUID.randomUUID();
+        UserUpdateDTO request = new UserUpdateDTO("Luan", "luan@finflow.com", "12345678");
 
-        UserUpdateDTO request = mock(UserUpdateDTO.class);
+        when(userRepository.findById(id)).thenReturn(Optional.empty());
 
-        when(userRepository.findById(id))
-                .thenReturn(Optional.empty());
-
-        ResourceNotFoundException exception =
-                assertThrows(
-                        ResourceNotFoundException.class,
-                        () -> userService.updateUser(id, request)
-                );
-
-        assertEquals(
-                "Usuário não encontrado",
-                exception.getMessage()
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class,
+                () -> userService.updateUser(id, request)
         );
 
-        verify(userRepository, never())
-                .save(any());
+        assertEquals("Usuário não encontrado", exception.getMessage());
 
-        verify(userMapper, never())
-                .updateEntity(any(), any());
+        verify(userRepository, never()).save(any());
+        verify(userMapper, never()).updateEntity(any(), any());
     }
 
     @Test
     void shouldThrowExceptionWhenUpdatingToExistingEmail() {
-
         UUID id = UUID.randomUUID();
-
-        UserUpdateDTO request = mock(UserUpdateDTO.class);
+        UserUpdateDTO request = new UserUpdateDTO("Luan", "existing@finflow.com", "12345678");
         User user = new User();
-
         user.setEmail("old@finflow.com");
 
-        when(userRepository.findById(id))
-                .thenReturn(Optional.of(user));
+        when(userRepository.findById(id)).thenReturn(Optional.of(user));
+        when(userRepository.existsByEmail("existing@finflow.com")).thenReturn(true);
 
-        when(request.email())
-                .thenReturn("existing@finflow.com");
-
-        when(userRepository.existsByEmail(
-                "existing@finflow.com"
-        )).thenReturn(true);
-
-        EmailAlreadyExistsException exception =
-                assertThrows(
-                        EmailAlreadyExistsException.class,
-                        () -> userService.updateUser(id, request)
-                );
-
-        assertEquals(
-                "existing@finflow.com",
-                exception.getMessage()
+        EmailAlreadyExistsException exception = assertThrows(
+                EmailAlreadyExistsException.class,
+                () -> userService.updateUser(id, request)
         );
 
-        verify(userRepository)
-                .existsByEmail("existing@finflow.com");
+        assertEquals("existing@finflow.com", exception.getMessage());
 
-        verify(userMapper, never())
-                .updateEntity(any(), any());
-
-        verify(userRepository, never())
-                .save(any());
+        verify(userRepository).existsByEmail("existing@finflow.com");
+        verify(userMapper, never()).updateEntity(any(), any());
+        verify(userRepository, never()).save(any());
     }
-
 
     // =========================================================
     // DELETE USER BY ADMIN
@@ -500,46 +304,32 @@ class UserServiceTest {
 
     @Test
     void shouldDeleteUserByAdminSuccessfully() {
-
         UUID id = UUID.randomUUID();
-
         User user = new User();
 
-        when(userRepository.findById(id))
-                .thenReturn(Optional.of(user));
+        when(userRepository.findById(id)).thenReturn(Optional.of(user));
 
         userService.deleteUserByAdmin(id);
 
-        verify(userRepository)
-                .findById(id);
-
-        verify(userRepository)
-                .delete(user);
+        verify(userRepository).findById(id);
+        verify(userRepository).delete(user);
     }
 
     @Test
     void shouldThrowExceptionWhenAdminDeletesNonExistingUser() {
-
         UUID id = UUID.randomUUID();
 
-        when(userRepository.findById(id))
-                .thenReturn(Optional.empty());
+        when(userRepository.findById(id)).thenReturn(Optional.empty());
 
-        ResourceNotFoundException exception =
-                assertThrows(
-                        ResourceNotFoundException.class,
-                        () -> userService.deleteUserByAdmin(id)
-                );
-
-        assertEquals(
-                "Usuário não encontrado",
-                exception.getMessage()
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class,
+                () -> userService.deleteUserByAdmin(id)
         );
 
-        verify(userRepository, never())
-                .delete(any());
-    }
+        assertEquals("Usuário não encontrado", exception.getMessage());
 
+        verify(userRepository, never()).delete(any());
+    }
 
     // =========================================================
     // DELETE OWN USER
@@ -547,44 +337,77 @@ class UserServiceTest {
 
     @Test
     void shouldDeleteOwnUserSuccessfully() {
-
         UUID id = UUID.randomUUID();
-
         User user = new User();
 
-        when(userRepository.findById(id))
-                .thenReturn(Optional.of(user));
+        when(userRepository.findById(id)).thenReturn(Optional.of(user));
 
         userService.deleteOwnUser(id);
 
-        verify(userRepository)
-                .findById(id);
-
-        verify(userRepository)
-                .delete(user);
+        verify(userRepository).findById(id);
+        verify(userRepository).delete(user);
     }
 
     @Test
     void shouldThrowExceptionWhenOwnUserDoesNotExist() {
-
         UUID id = UUID.randomUUID();
 
-        when(userRepository.findById(id))
-                .thenReturn(Optional.empty());
+        when(userRepository.findById(id)).thenReturn(Optional.empty());
 
-        ResourceNotFoundException exception =
-                assertThrows(
-                        ResourceNotFoundException.class,
-                        () -> userService.deleteOwnUser(id)
-                );
-
-        assertEquals(
-                "Usuário não encontrado",
-                exception.getMessage()
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class,
+                () -> userService.deleteOwnUser(id)
         );
 
-        verify(userRepository, never())
-                .delete(any());
+        assertEquals("Usuário não encontrado", exception.getMessage());
+
+        verify(userRepository, never()).delete(any());
+    }
+
+    // =========================================================
+    // COMPLETE ONBOARDING
+    // =========================================================
+
+    @Test
+    void shouldCompleteOnboardingSuccessfully() {
+        UUID id = UUID.randomUUID();
+        User user = new User();
+        user.setId(id);
+        user.setOnboardingCompleted(false);
+
+        User updatedUser = new User();
+        updatedUser.setId(id);
+        updatedUser.setOnboardingCompleted(true);
+
+        UserResponseDTO response = mock(UserResponseDTO.class);
+
+        when(userRepository.findById(id)).thenReturn(Optional.of(user));
+        when(userRepository.save(user)).thenReturn(updatedUser);
+        when(userMapper.toDTO(updatedUser)).thenReturn(response);
+
+        UserResponseDTO result = userService.completeOnboarding(id);
+
+        assertSame(response, result);
+        assertTrue(user.isOnboardingCompleted());
+
+        verify(userRepository).findById(id);
+        verify(userRepository).save(user);
+        verify(userMapper).toDTO(updatedUser);
+    }
+
+    @Test
+    void shouldThrowExceptionWhenOnboardingNonExistingUser() {
+        UUID id = UUID.randomUUID();
+
+        when(userRepository.findById(id)).thenReturn(Optional.empty());
+
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class,
+                () -> userService.completeOnboarding(id)
+        );
+
+        assertEquals("Usuário não encontrado", exception.getMessage());
+
+        verify(userRepository, never()).save(any());
     }
 }
-

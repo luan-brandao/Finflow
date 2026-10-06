@@ -244,6 +244,18 @@ class UserServiceIntegrationTest {
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 
+    @Test
+    void shouldCompleteOnboardingSuccessfully() {
+        User user = userRepository.save(createUser());
+        assertThat(user.isOnboardingCompleted()).isFalse();
+
+        UserResponseDTO response = userService.completeOnboarding(user.getId());
+        assertThat(response.onboardingCompleted()).isTrue();
+
+        User updatedUser = userRepository.findById(user.getId()).orElseThrow();
+        assertThat(updatedUser.isOnboardingCompleted()).isTrue();
+    }
+
     private User createUser() {
         return createUser(
                 "Luan",

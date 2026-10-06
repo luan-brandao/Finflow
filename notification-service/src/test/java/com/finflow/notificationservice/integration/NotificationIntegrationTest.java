@@ -72,7 +72,7 @@ class NotificationIntegrationTest {
         );
 
         // Send the event to RabbitMQ broker
-        rabbitTemplate.convertAndSend("finflow.notifications.exchange", "finance.goal.reached", event);
+        rabbitTemplate.convertAndSend("finflow.finance.exchange", "finance.goal.reached", event);
 
         // Wait a short time for RabbitMQ asynchronous consumer to pick and save to Postgres
         boolean processed = false;
@@ -96,7 +96,7 @@ class NotificationIntegrationTest {
         assertThat(notification.getContent()).contains("Viagem Europa");
 
         // Now test Idempotency: Send the exact same event again
-        rabbitTemplate.convertAndSend("finflow.notifications.exchange", "finance.goal.reached", event);
+        rabbitTemplate.convertAndSend("finflow.finance.exchange", "finance.goal.reached", event);
         TimeUnit.MILLISECONDS.sleep(1000); // Wait for consumer to process
 
         // The list must still have size 1 (the duplicate event is discarded gracefully)

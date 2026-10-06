@@ -2,7 +2,7 @@ package com.finflow.financeservice.service;
 
 import com.finflow.financeservice.dto.DashboardResponseDTO;
 import com.finflow.financeservice.model.Transaction;
-import com.finflow.financeservice.model.TransactionCategory;
+import com.finflow.financeservice.model.Category;
 import com.finflow.financeservice.model.TransactionType;
 import com.finflow.financeservice.repository.CategoryRepository;
 import com.finflow.financeservice.repository.MonthlyIncomeRepository;
@@ -66,7 +66,7 @@ class DashboardServiceTest {
         LocalDate end = LocalDate.now();
 
         UUID categoryId = UUID.randomUUID();
-        TransactionCategory category = new TransactionCategory();
+        Category category = new Category();
         category.setId(categoryId);
         category.setName("Alimentação");
 

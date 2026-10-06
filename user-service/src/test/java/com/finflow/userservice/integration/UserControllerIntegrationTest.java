@@ -15,6 +15,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.context.annotation.Import;
 import com.finflow.userservice.TestcontainersConfiguration;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.UUID;
 
@@ -447,6 +448,32 @@ class UserControllerIntegrationTest {
                                 .content(json)
                 )
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldAllowUserToCompleteOnboarding() throws Exception {
+        User user = createUser(
+                "Luan",
+                "luan@finflow.com",
+                "12345678",
+                Role.USER
+        );
+        assertThat(user.isOnboardingCompleted()).isFalse();
+
+        String token = login("luan@finflow.com", "12345678");
+
+        mockMvc.perform(
+                        put("/api/users/me/onboarding")
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.onboardingCompleted").value(true));
+
+        User updated = userRepository.findById(user.getId()).orElseThrow();
+        assertThat(updated.isOnboardingCompleted()).isTrue();
     }
 
     private User createUser(

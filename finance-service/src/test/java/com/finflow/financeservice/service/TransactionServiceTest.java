@@ -79,7 +79,7 @@ class TransactionServiceTest {
                 null
         );
 
-        Category category = new TransactionCategory();
+        Category category = new Category();
         category.setId(categoryId);
         category.setUserId(userId);
 
@@ -103,7 +103,7 @@ class TransactionServiceTest {
         UUID categoryId = UUID.randomUUID();
         TransactionRequestDTO request = new TransactionRequestDTO(
                 "Compra de Peça",
-                new BigDecimal("150.00"), // wants to withdraw 150.00
+                new BigDecimal("150.00"),
                 TransactionType.EXPENSE,
                 categoryId,
                 LocalDate.now(),
@@ -111,7 +111,7 @@ class TransactionServiceTest {
                 goalId
         );
 
-        Category category = new TransactionCategory();
+        Category category = new Category();
         category.setId(categoryId);
         category.setUserId(userId);
 
@@ -119,7 +119,7 @@ class TransactionServiceTest {
         goal.setId(goalId);
         goal.setUserId(userId);
         goal.setTitle("Meta Carro");
-        goal.setCurrentAmount(new BigDecimal("100.00")); // goal only has 100.00 saved
+        goal.setCurrentAmount(new BigDecimal("100.00"));
 
         when(categoryRepository.findById(categoryId)).thenReturn(Optional.of(category));
         when(goalRepository.findById(goalId)).thenReturn(Optional.of(goal));
@@ -145,7 +145,7 @@ class TransactionServiceTest {
                 goalId
         );
 
-        Category category = new TransactionCategory();
+        Category category = new Category();
         category.setId(categoryId);
         category.setUserId(userId);
 
@@ -154,7 +154,7 @@ class TransactionServiceTest {
         goal.setUserId(userId);
         goal.setTitle("Meta Carro");
         goal.setTargetAmount(new BigDecimal("10000.00"));
-        goal.setCurrentAmount(new BigDecimal("6000.00")); // will become 11000.00 (reached!)
+        goal.setCurrentAmount(new BigDecimal("6000.00"));
         goal.setTargetDate(LocalDate.now().plusYears(1));
         goal.setReachedNotified(false);
 
@@ -166,7 +166,6 @@ class TransactionServiceTest {
 
         transactionService.create(request);
 
-        // verify event publication on RabbitMQ
         verify(eventPublisherService).publishEvent(
                 eq("finance.goal.reached.early"),
                 eq("GOAL_REACHED_EARLY"),
@@ -191,7 +190,7 @@ class TransactionServiceTest {
         Goal goal = new Goal();
         goal.setId(goalId);
         goal.setUserId(userId);
-        goal.setCurrentAmount(new BigDecimal("1000.00")); // currently 1000.00
+        goal.setCurrentAmount(new BigDecimal("1000.00"));
 
         when(transactionRepository.findByIdAndUserId(id, userId)).thenReturn(Optional.of(transaction));
         when(goalRepository.findById(goalId)).thenReturn(Optional.of(goal));
@@ -199,7 +198,6 @@ class TransactionServiceTest {
         transactionService.delete(id);
 
         verify(transactionRepository).delete(transaction);
-        // Income of 200.00 is deleted, so goal amount must decrease to 800.00
         assertEquals(new BigDecimal("800.00"), goal.getCurrentAmount());
         verify(goalRepository).save(goal);
     }
