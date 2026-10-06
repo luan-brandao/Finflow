@@ -1,12 +1,13 @@
 package com.finflow.financeservice.service;
 
 import com.finflow.financeservice.dto.CardInvoiceResponseDTO;
+import com.finflow.financeservice.exception.AccessDeniedException;
 import com.finflow.financeservice.exception.ResourceNotFoundException;
-import com.finflow.financeservice.mapper.CardInvoiceMapper;
 import com.finflow.financeservice.model.Card;
 import com.finflow.financeservice.model.CardInvoice;
 import com.finflow.financeservice.repository.CardInvoiceRepository;
 import com.finflow.financeservice.repository.CardRepository;
+import com.finflow.financeservice.repository.TransactionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,6 +20,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -30,13 +32,13 @@ import static org.mockito.Mockito.*;
 class CardInvoiceServiceTest {
 
     @Mock
-    private CardInvoiceRepository cardInvoiceRepository;
-
-    @Mock
     private CardRepository cardRepository;
 
     @Mock
-    private CardInvoiceMapper cardInvoiceMapper;
+    private CardInvoiceRepository cardInvoiceRepository;
+
+    @Mock
+    private TransactionRepository transactionRepository;
 
     @Mock
     private EventPublisherService eventPublisherService;
@@ -60,80 +62,137 @@ class CardInvoiceServiceTest {
     }
 
     @Test
-    void shouldFindAllInvoicesForAuthenticatedUser() {
-        CardInvoice invoice1 = new CardInvoice();
-        invoice1.setUserId(userId);
-        CardInvoice invoice2 = new CardInvoice();
-        invoice2.setUserId(userId);
+    void shouldGetInvoicesSuccessfully() {
+        UUID cardId = UUID.randomUUID();
+        Card card = new Card();
+        card.setId(cardId);
+        card.setUserId(userId);
+        card.setDueDay(10);
 
-        CardInvoiceResponseDTO dto1 = mock(CardInvoiceResponseDTO.class);
-        CardInvoiceResponseDTO dto2 = mock(CardInvoiceResponseDTO.class);
+        List<CardInvoice> savedInvoices = new ArrayList<>();
+        CardInvoice ci = new CardInvoice();
+        ci.setId(UUID.randomUUID());
+        ci.setCardId(cardId);
+        ci.setUserId(userId);
+        ci.setYear(LocalDate.now().getYear());
+        ci.setMonth(LocalDate.now().getMonthValue());
+        ci.setAmount(new BigDecimal("150.00"));
+        ci.setStatus("CLOSED");
+        ci.setDueDate(LocalDate.now().plusMonths(1));
+        savedInvoices.add(ci);
 
-        when(cardInvoiceRepository.findByUserId(userId)).thenReturn(List.of(invoice1, invoice2));
-        when(cardInvoiceMapper.toDTO(invoice1)).thenReturn(dto1);
-        when(cardInvoiceMapper.toDTO(invoice2)).thenReturn(dto2);
+        when(cardRepository.findById(cardId)).thenReturn(Optional.of(card));
+        when(cardInvoiceRepository.findByCardId(cardId)).thenReturn(savedInvoices);
+        when(transactionRepository.findDistinctYearsAndMonthsByCardId(cardId)).thenReturn(new ArrayList<>());
 
-        List<CardInvoiceResponseDTO> result = cardInvoiceService.findAll();
+        List<CardInvoiceResponseDTO> invoices = cardInvoiceService.getInvoices(cardId);
 
-        assertEquals(2, result.size());
-        verify(cardInvoiceRepository).findByUserId(userId);
+        assertNotNull(invoices);
+        assertFalse(invoices.isEmpty());
+        assertEquals(LocalDate.now().getYear(), invoices.get(0).year());
+    }
+
+    @Test
+    void shouldCloseInvoiceSuccessfully() {
+        UUID cardId = UUID.randomUUID();
+        Card card = new Card();
+        card.setId(cardId);
+        card.setUserId(userId);
+        card.setName("Visa Gold");
+        card.setDueDay(15);
+        card.setPrepaidAmount(new BigDecimal("50.00"));
+
+        int year = 2026;
+        int month = 10;
+
+        when(cardRepository.findById(cardId)).thenReturn(Optional.of(card));
+        when(cardInvoiceRepository.findByCardIdAndYearAndMonth(cardId, year, month)).thenReturn(Optional.empty());
+        when(transactionRepository.sumExpenseByCardIdAndYearAndMonth(cardId, year, month)).thenReturn(new BigDecimal("250.00"));
+
+        CardInvoice savedInvoice = new CardInvoice();
+        savedInvoice.setId(UUID.randomUUID());
+        savedInvoice.setCardId(cardId);
+        savedInvoice.setUserId(userId);
+        savedInvoice.setYear(year);
+        savedInvoice.setMonth(month);
+        savedInvoice.setAmount(new BigDecimal("200.00")); // 250 - 50 prepaid
+        savedInvoice.setStatus("CLOSED");
+        savedInvoice.setDueDate(LocalDate.of(2026, 11, 15));
+
+        when(cardInvoiceRepository.save(any(CardInvoice.class))).thenReturn(savedInvoice);
+
+        CardInvoiceResponseDTO response = cardInvoiceService.closeInvoice(cardId, year, month);
+
+        assertNotNull(response);
+        assertEquals(new BigDecimal("200.00"), response.amount());
+        assertEquals("CLOSED", response.status());
+        assertEquals(BigDecimal.ZERO, card.getPrepaidAmount()); // verified reset
+        verify(cardRepository).save(card);
+        verify(eventPublisherService).publishEvent(eq("finance.invoice.closed"), eq("INVOICE_CLOSED"), eq(userId), anyMap());
+    }
+
+    @Test
+    void shouldThrowExceptionWhenClosingAlreadyClosedInvoice() {
+        UUID cardId = UUID.randomUUID();
+        Card card = new Card();
+        card.setId(cardId);
+        card.setUserId(userId);
+
+        int year = 2026;
+        int month = 10;
+
+        when(cardRepository.findById(cardId)).thenReturn(Optional.of(card));
+        when(cardInvoiceRepository.findByCardIdAndYearAndMonth(cardId, year, month)).thenReturn(Optional.of(new CardInvoice()));
+
+        assertThrows(IllegalArgumentException.class, () -> cardInvoiceService.closeInvoice(cardId, year, month));
     }
 
     @Test
     void shouldPayInvoiceSuccessfully() {
-        UUID invoiceId = UUID.randomUUID();
         UUID cardId = UUID.randomUUID();
+        UUID invoiceId = UUID.randomUUID();
 
         Card card = new Card();
         card.setId(cardId);
         card.setUserId(userId);
-        card.setLimitAmount(new BigDecimal("5000.00"));
-        card.setUsedAmount(new BigDecimal("1000.00")); // has 1000.00 spent
 
         CardInvoice invoice = new CardInvoice();
         invoice.setId(invoiceId);
-        invoice.setUserId(userId);
         invoice.setCardId(cardId);
-        invoice.setAmount(new BigDecimal("400.00"));
+        invoice.setUserId(userId);
+        invoice.setAmount(new BigDecimal("200.00"));
         invoice.setStatus("CLOSED");
 
-        when(cardInvoiceRepository.findById(invoiceId)).thenReturn(Optional.of(invoice));
         when(cardRepository.findById(cardId)).thenReturn(Optional.of(card));
+        when(cardInvoiceRepository.findById(invoiceId)).thenReturn(Optional.of(invoice));
         when(cardInvoiceRepository.save(invoice)).thenReturn(invoice);
-        when(cardRepository.save(card)).thenReturn(card);
 
-        cardInvoiceService.payInvoice(invoiceId);
+        CardInvoiceResponseDTO response = cardInvoiceService.payInvoice(cardId, invoiceId);
 
-        assertEquals("PAID", invoice.getStatus());
-        assertNotNull(invoice.getPaidAt());
-        // Since 400.00 is paid, the card's spent used amount decreases from 1000.00 to 600.00
-        assertEquals(new BigDecimal("600.00"), card.getUsedAmount());
+        assertNotNull(response);
+        assertEquals("PAID", response.status());
+        assertNotNull(response.paidAt());
         verify(cardInvoiceRepository).save(invoice);
-        verify(cardRepository).save(card);
     }
 
     @Test
-    void shouldThrowExceptionWhenPayingAlreadyPaidInvoice() {
+    void shouldThrowExceptionWhenPayingInvoiceOfAnotherCard() {
+        UUID cardId = UUID.randomUUID();
+        UUID anotherCardId = UUID.randomUUID();
         UUID invoiceId = UUID.randomUUID();
+
+        Card card = new Card();
+        card.setId(cardId);
+        card.setUserId(userId);
+
         CardInvoice invoice = new CardInvoice();
         invoice.setId(invoiceId);
+        invoice.setCardId(anotherCardId); // belongs to another card
         invoice.setUserId(userId);
-        invoice.setStatus("PAID");
 
+        when(cardRepository.findById(cardId)).thenReturn(Optional.of(card));
         when(cardInvoiceRepository.findById(invoiceId)).thenReturn(Optional.of(invoice));
 
-        assertThrows(IllegalArgumentException.class, () -> {
-            cardInvoiceService.payInvoice(invoiceId);
-        });
-    }
-
-    @Test
-    void shouldThrowExceptionWhenInvoiceNotFound() {
-        UUID invoiceId = UUID.randomUUID();
-        when(cardInvoiceRepository.findById(invoiceId)).thenReturn(Optional.empty());
-
-        assertThrows(ResourceNotFoundException.class, () -> {
-            cardInvoiceService.payInvoice(invoiceId);
-        });
+        assertThrows(AccessDeniedException.class, () -> cardInvoiceService.payInvoice(cardId, invoiceId));
     }
 }
