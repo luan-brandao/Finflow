@@ -113,6 +113,7 @@ export interface Goal {
   targetAmount: number;
   currentAmount: number;
   targetDate: string;
+  status?: string;
   createdAt?: string;
 }
 
@@ -121,6 +122,7 @@ export interface GoalRequest {
   targetAmount: number;
   currentAmount: number;
   targetDate: string;
+  status?: string;
 }
 
 export interface Card {

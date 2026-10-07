@@ -47,6 +47,7 @@ export default function Layout({ children }: LayoutProps) {
 
   const fetchNotifications = async () => {
     if (!authService.isAuthenticated()) return
+    setLoadingNotifications(true)
     try {
       const list = await notificationService.findAll()
       setNotifications(list)
@@ -54,6 +55,8 @@ export default function Layout({ children }: LayoutProps) {
       setUnreadCount(count)
     } catch (err) {
       console.error('Erro ao buscar notificações:', err)
+    } finally {
+      setLoadingNotifications(false)
     }
   }
 
